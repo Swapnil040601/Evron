@@ -1,0 +1,450 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "name": "Sarah Jenkins",
+      "code": "EMP-EVN-101",
+      "email": "superadmin@evron.ai",
+      "phone": "+1 (555) 019-2834",
+      "gender": "Female",
+      "type": "Staff",
+      "department": "Engineering",
+      "role": "super_admin",
+      "status": "Active",
+      "avatar": "avatars/42.jpg",
+      "reporting_manager_id": null,
+      "reporting_manager_name": null
+    },
+    {
+      "id": 5,
+      "name": "Jane Smith",
+      "code": "EMP-EVN-102",
+      "email": "admin@evron.ai",
+      "phone": "+1 (555) 019-6123",
+      "gender": "Female",
+      "type": "Staff",
+      "department": "HR",
+      "role": "admin",
+      "status": "Active",
+      "avatar": "avatars/5.jpg",
+      "reporting_manager_id": 1,
+      "reporting_manager_name": "Sarah Jenkins"
+    },
+    {
+      "id": 10,
+      "name": "John Doe",
+      "code": "EMP-EVN-210",
+      "email": "user@evron.ai",
+      "phone": "9999999999",
+      "gender": "Male",
+      "type": "Staff",
+      "department": "IT",
+      "role": "user",
+      "status": "Active",
+      "avatar": "avatars/1.jpg",
+      "reporting_manager_id": 5,
+      "reporting_manager_name": "Jane Smith"
+    },
+    {
+      "id": 11,
+      "name": "Michael Chen",
+      "code": "EMP-EVN-103",
+      "email": "michael.c@company.com",
+      "phone": "+1 (555) 019-8831",
+      "gender": "Male",
+      "type": "Staff",
+      "department": "Design",
+      "role": "user",
+      "status": "Active",
+      "avatar": "avatars/2.jpg",
+      "reporting_manager_id": 5,
+      "reporting_manager_name": "Jane Smith"
+    },
+    {
+      "id": 201,
+      "name": "Swapnil Rathore",
+      "code": "EMP-EVN-201",
+      "email": "swapnil.r@evronnetworks.com",
+      "phone": "+91 98765 43210",
+      "gender": "Male",
+      "type": "Staff",
+      "department": "Operations",
+      "role": "super_admin",
+      "status": "Active",
+      "avatar": "avatars/42.jpg",
+      "reporting_manager_id": null,
+      "reporting_manager_name": null
+    }
+  ],
+  "attendance": [
+    {
+      "id": 1,
+      "user_id": 1,
+      "user_name": "Sarah Jenkins",
+      "date": "2026-05-24",
+      "status": "Present",
+      "check_in": "08:45",
+      "check_out": "18:00",
+      "productive_hours": 9.25
+    },
+    {
+      "id": 2,
+      "user_id": 11,
+      "user_name": "Michael Chen",
+      "date": "2026-05-24",
+      "status": "Present",
+      "check_in": "09:32",
+      "check_out": "18:00",
+      "productive_hours": 8.46
+    },
+    {
+      "id": 3,
+      "user_id": 5,
+      "user_name": "Jane Smith",
+      "date": "2026-05-24",
+      "status": "On Leave",
+      "check_in": null,
+      "check_out": null,
+      "productive_hours": 0
+    },
+    {
+      "id": 4,
+      "user_id": 10,
+      "user_name": "John Doe",
+      "date": "2026-05-24",
+      "status": "Present",
+      "check_in": "09:00",
+      "check_out": "18:00",
+      "productive_hours": 8
+    },
+    {
+      "id": 5,
+      "user_id": 201,
+      "user_name": "Swapnil Rathore",
+      "date": "2026-05-24",
+      "status": "Present",
+      "check_in": "08:50",
+      "check_out": "17:30",
+      "productive_hours": 8.67
+    }
+  ],
+  "trackLogs": [
+    {
+      "id": 1,
+      "timestamp": "2026-05-24 09:00 AM",
+      "camera_name": "Main Gate Block A",
+      "type": "In",
+      "accuracy": 99.2
+    },
+    {
+      "id": 2,
+      "timestamp": "2026-05-24 10:15 AM",
+      "camera_name": "Block A Cafeteria Entry",
+      "type": "Through",
+      "accuracy": 98.4
+    },
+    {
+      "id": 3,
+      "timestamp": "2026-05-24 01:20 PM",
+      "camera_name": "IT Server Vault Bypass",
+      "type": "Through",
+      "accuracy": 96.8
+    }
+  ],
+  "leaves": [
+    {
+      "id": 1,
+      "leave_type_id": 2,
+      "leave_type_name": "Casual Leave",
+      "from_date": "2026-06-01",
+      "to_date": "2026-06-02",
+      "no_of_days": 2,
+      "reason": "Personal family emergency work requirement",
+      "is_lop": false,
+      "status": "Pending",
+      "created_at": "2026-05-24T12:00:00.000Z",
+      "user_id": 10,
+      "user_name": "John Doe",
+      "department": "IT"
+    },
+    {
+      "id": 2,
+      "leave_type_id": 1,
+      "leave_type_name": "Sick Leave",
+      "from_date": "2026-05-24",
+      "to_date": "2026-05-24",
+      "no_of_days": 1,
+      "reason": "Doctor certified high medical fever resting",
+      "is_lop": false,
+      "status": "Approved",
+      "created_at": "2026-05-23T08:00:00.000Z",
+      "user_id": 5,
+      "user_name": "Jane Smith",
+      "department": "HR"
+    }
+  ],
+  "leaveBalances": [
+    {
+      "leave_type_id": 1,
+      "leave_type_name": "Sick Leave",
+      "allocated": 8,
+      "used": 2,
+      "remaining": 6,
+      "is_paid": true
+    },
+    {
+      "leave_type_id": 2,
+      "leave_type_name": "Casual Leave",
+      "allocated": 12,
+      "used": 2,
+      "remaining": 10,
+      "is_paid": true
+    },
+    {
+      "leave_type_id": 3,
+      "leave_type_name": "Annual Privilege Leave",
+      "allocated": 18,
+      "used": 4,
+      "remaining": 14,
+      "is_paid": true
+    },
+    {
+      "leave_type_id": 4,
+      "leave_type_name": "Loss of Pay (LOP)",
+      "allocated": 30,
+      "used": 0,
+      "remaining": 30,
+      "is_paid": false
+    }
+  ],
+  "leaveTypes": [
+    {
+      "id": 1,
+      "name": "Sick Leave",
+      "description": "Paid medical leave with certified certificate",
+      "is_paid": true
+    },
+    {
+      "id": 2,
+      "name": "Casual Leave",
+      "description": "Urgent personal work allocations",
+      "is_paid": true
+    },
+    {
+      "id": 3,
+      "name": "Annual Privilege Leave",
+      "description": "Scheduled annual holiday break leaves",
+      "is_paid": true
+    },
+    {
+      "id": 4,
+      "name": "Loss of Pay (LOP)",
+      "description": "Unpaid leaves bypass allowances",
+      "is_paid": false
+    }
+  ],
+  "holidays": [
+    {
+      "id": 1,
+      "date": "2026-01-01",
+      "name": "New Year Day celebration",
+      "type": "National",
+      "description": "Universal annual setup"
+    },
+    {
+      "id": 2,
+      "date": "2026-08-15",
+      "name": "Independence Day",
+      "type": "National",
+      "description": "National flag hoisting and parades"
+    },
+    {
+      "id": 3,
+      "date": "2026-12-25",
+      "name": "Christmas",
+      "type": "Regional",
+      "description": "Religious holiday event"
+    }
+  ],
+  "shifts": [
+    {
+      "id": 1,
+      "name": "General/Day Shift",
+      "start_time": "09:00",
+      "end_time": "18:05",
+      "staff_count": 3,
+      "staff": [
+        1,
+        5,
+        10
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Night Critical Patrol",
+      "start_time": "21:00",
+      "end_time": "06:00",
+      "staff_count": 1,
+      "staff": [
+        11
+      ]
+    }
+  ],
+  "shiftAssignments": [
+    {
+      "id": 1,
+      "user_id": 1,
+      "shift_id": 1,
+      "from_date": "2026-05-01",
+      "to_date": null
+    },
+    {
+      "id": 2,
+      "user_id": 5,
+      "shift_id": 1,
+      "from_date": "2026-05-01",
+      "to_date": null
+    },
+    {
+      "id": 3,
+      "user_id": 10,
+      "shift_id": 1,
+      "from_date": "2026-05-15",
+      "to_date": null
+    },
+    {
+      "id": 4,
+      "user_id": 11,
+      "shift_id": 2,
+      "from_date": "2026-05-01",
+      "to_date": null
+    }
+  ],
+  "canteenVisits": [
+    {
+      "id": 1,
+      "user_id": 1,
+      "user_name": "Sarah Jenkins",
+      "date": "2026-05-24",
+      "time": "09:12 AM",
+      "meal_type": "Breakfast",
+      "cost": 12
+    },
+    {
+      "id": 2,
+      "user_id": 10,
+      "user_name": "John Doe",
+      "date": "2026-05-24",
+      "time": "01:30 PM",
+      "meal_type": "Lunch",
+      "cost": 35
+    },
+    {
+      "id": 3,
+      "user_id": 11,
+      "user_name": "Michael Chen",
+      "date": "2026-05-24",
+      "time": "05:45 PM",
+      "meal_type": "Snacks",
+      "cost": 8
+    },
+    {
+      "id": 4,
+      "user_id": 1,
+      "user_name": "Sarah Jenkins",
+      "date": "2026-05-24",
+      "time": "02:00 PM",
+      "meal_type": "Lunch",
+      "cost": 35
+    }
+  ],
+  "alerts": [
+    {
+      "id": 1,
+      "message": "Intrusion alert in Server Room: perimeter bypassed on Cam-03",
+      "timestamp": "2026-05-24 09:15 AM",
+      "read": false,
+      "type": "critical"
+    },
+    {
+      "id": 2,
+      "message": "Extreme thermal trigger near Block B boiler sector",
+      "timestamp": "2026-05-24 10:45 AM",
+      "read": false,
+      "type": "warning"
+    },
+    {
+      "id": 3,
+      "message": "Auto daily surveillance database sync successfully matching SLA parameters",
+      "timestamp": "2026-05-24 12:00 PM",
+      "read": true,
+      "type": "info"
+    }
+  ],
+  "settings": [
+    {
+      "key": "app_name",
+      "label": "App Identification Brand",
+      "type": "text",
+      "value": "EVRON AI SUITE",
+      "group": "Company"
+    },
+    {
+      "key": "company_domain",
+      "label": "Surveillance Hub domain",
+      "type": "text",
+      "value": "evron.corp.ai",
+      "group": "Company"
+    },
+    {
+      "key": "enable_fire_detection",
+      "label": "Live Boiler Room thermal scan alarms",
+      "type": "boolean",
+      "value": "true",
+      "group": "Features"
+    },
+    {
+      "key": "enable_secured_area",
+      "label": "Server Room high security lock toggle",
+      "type": "boolean",
+      "value": "true",
+      "group": "Features"
+    },
+    {
+      "key": "enable_canteen",
+      "label": "Smart Cafeteria dynamic biometrics billing",
+      "type": "boolean",
+      "value": "true",
+      "group": "Features"
+    },
+    {
+      "key": "smtp_host",
+      "label": "HR alerts dispatch mail relay host",
+      "type": "text",
+      "value": "smtp.evron.ai",
+      "group": "Email"
+    },
+    {
+      "key": "gemini_model_profile",
+      "label": "Selected Face Embeddings verification LLM",
+      "type": "text",
+      "value": "gemini-2.5-flash-camera-v2",
+      "group": "AI Config"
+    }
+  ],
+  "cameraSettings": {
+    "isRunning": false
+  },
+  "nvrs": [
+    {
+      "id": "nvr-01",
+      "name": "NVR-Primary-01",
+      "ip": "192.168.1.50",
+      "brand": "Evron Core NVR",
+      "port": 80,
+      "username": "admin",
+      "status": "Online"
+    }
+  ],
+  "customCameras": []
+}

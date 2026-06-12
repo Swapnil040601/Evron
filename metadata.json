@@ -1,0 +1,6 @@
+{
+  "name": "Surveillance & Attendance Tracker",
+  "description": "Unified AI camera tracking, real-time staff attendance, leave management, live feeds, and administrative security workspace.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

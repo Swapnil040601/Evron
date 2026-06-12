@@ -1,0 +1,19 @@
+services:
+  ai-app:
+    image: evron-ai-app
+    container_name: evron_ai_app
+    restart: unless-stopped
+    ports:
+      - "5193:5193"
+    environment:
+      PORT: "5193"
+      NODE_ENV: production
+      BACKEND_URL: http://fastify_backend:3000
+      MEDIAMTX_URL: http://mediamtx:8888
+      AI_API_URL: http://ai_api:5001
+    networks:
+      - ai_evron_default
+
+networks:
+  ai_evron_default:
+    external: true
