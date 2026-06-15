@@ -31,7 +31,9 @@ import {
   Info,
   Sun,
   Moon,
-  MapPin
+  MapPin,
+  LocateFixed,
+  RefreshCw
 } from 'lucide-react';
 import DeviceSimulator, { getDeviceHardwareState } from './DeviceSimulator';
 import AuraBackground from './AuraBackground';
@@ -130,6 +132,13 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
 
   // Real device GPS + internet status (replaces mock for enforcement)
   const realDevice = useRealDeviceStatus(profile.name);
+  const [locationRefreshing, setLocationRefreshing] = useState(false);
+
+  const handleRefreshLocation = async () => {
+    setLocationRefreshing(true);
+    await realDevice.refreshLocation();
+    setLocationRefreshing(false);
+  };
 
   // Scroll tracking to show/hide lower menu
   const [isBottomNavVisible, setIsBottomNavVisible] = useState(true);
@@ -883,26 +892,50 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
                     <MapPin className="w-4 h-4" />
                     Your Live Location
                   </h3>
-                  <span className="text-[9px] font-mono text-zinc-500 uppercase">
-                    {realDevice.latitude.toFixed(5)}, {realDevice.longitude.toFixed(5)}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {realDevice.locationReady && (
+                      <span className="text-[9px] font-mono text-zinc-500 uppercase">
+                        {realDevice.latitude.toFixed(5)}, {realDevice.longitude.toFixed(5)}
+                      </span>
+                    )}
+                    <button
+                      onClick={handleRefreshLocation}
+                      disabled={locationRefreshing}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg bg-zinc-900 border border-zinc-700 text-[10px] font-mono text-emerald-400 hover:bg-zinc-800 active:scale-95 transition-all disabled:opacity-50"
+                    >
+                      {locationRefreshing
+                        ? <RefreshCw className="w-3 h-3 animate-spin" />
+                        : <LocateFixed className="w-3 h-3" />
+                      }
+                      {locationRefreshing ? 'Locating...' : 'Refresh'}
+                    </button>
+                  </div>
                 </div>
-                <LiveMap
-                  centerLat={realDevice.latitude}
-                  centerLng={realDevice.longitude}
-                  zoom={16}
-                  geofenceRadius={300}
-                  selfMode
-                  employees={[{
-                    id: profile.code || 'emp',
-                    name: profile.name,
-                    lat: realDevice.latitude,
-                    lng: realDevice.longitude,
-                    status: todayAttendance?.status || 'Unknown',
-                    insideGeofence: true,
-                  }]}
-                  height="280px"
-                />
+                {realDevice.locationReady ? (
+                  <LiveMap
+                    centerLat={realDevice.latitude}
+                    centerLng={realDevice.longitude}
+                    zoom={16}
+                    geofenceRadius={300}
+                    selfMode
+                    employees={[{
+                      id: profile.code || 'emp',
+                      name: profile.name,
+                      lat: realDevice.latitude,
+                      lng: realDevice.longitude,
+                      status: todayAttendance?.status || 'Unknown',
+                      insideGeofence: true,
+                    }]}
+                    height="280px"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-[280px] bg-zinc-950 border border-zinc-800 rounded-xl">
+                    <div className="text-center space-y-2">
+                      <LocateFixed className="w-6 h-6 text-zinc-600 mx-auto animate-pulse" />
+                      <p className="text-[10px] font-mono text-zinc-500">Acquiring GPS signal...</p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

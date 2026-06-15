@@ -10,21 +10,22 @@ export interface RealDeviceStatus {
   latitude: number;
   longitude: number;
   checking: boolean;
+  locationReady: boolean;
+  refreshLocation: () => Promise<void>;
 }
-
-const DEFAULT_LAT = 12.9716;
-const DEFAULT_LNG = 77.5946;
 
 export function useRealDeviceStatus(employeeName?: string): RealDeviceStatus {
   const [gpsEnabled, setGpsEnabled] = useState(false);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
-  const [latitude, setLatitude] = useState(DEFAULT_LAT);
-  const [longitude, setLongitude] = useState(DEFAULT_LNG);
+  const [latitude, setLatitude] = useState(0);
+  const [longitude, setLongitude] = useState(0);
   const [checking, setChecking] = useState(true);
+  const [locationReady, setLocationReady] = useState(false);
 
   const prevGpsRef = useRef<boolean | null>(null);
   const prevOnlineRef = useRef<boolean | null>(null);
+  const watchIdRef = useRef<string | null>(null);
 
   const raiseAlert = async (message: string, type: 'critical' | 'warning' | 'info') => {
     try {
@@ -32,7 +33,16 @@ export function useRealDeviceStatus(employeeName?: string): RealDeviceStatus {
     } catch {}
   };
 
-  const checkGps = useCallback(async () => {
+  const stopWatching = useCallback(async () => {
+    if (watchIdRef.current !== null) {
+      await Geolocation.clearWatch({ id: watchIdRef.current });
+      watchIdRef.current = null;
+    }
+  }, []);
+
+  const startWatching = useCallback(async () => {
+    await stopWatching();
+
     try {
       let perm = await Geolocation.checkPermissions();
 
@@ -55,23 +65,60 @@ export function useRealDeviceStatus(employeeName?: string): RealDeviceStatus {
         return;
       }
 
-      const pos = await Geolocation.getCurrentPosition({
-        timeout: 10000,
-        enableHighAccuracy: true,
-      });
-
-      setGpsEnabled(true);
-      setPermissionDenied(false);
-      setLatitude(pos.coords.latitude);
-      setLongitude(pos.coords.longitude);
-
-      if (prevGpsRef.current === false) {
+      // Get immediate position first so the map shows real location right away
+      try {
+        const initial = await Geolocation.getCurrentPosition({
+          timeout: 10000,
+          enableHighAccuracy: true,
+        });
+        setLatitude(initial.coords.latitude);
+        setLongitude(initial.coords.longitude);
+        setGpsEnabled(true);
+        setPermissionDenied(false);
+        setLocationReady(true);
         prevGpsRef.current = true;
-        const name = employeeName || 'Employee';
-        await raiseAlert(`✅ GPS RESTORED: ${name}'s device location is now active.`, 'info');
-      } else {
-        prevGpsRef.current = true;
+      } catch {
+        // Will be caught by watchPosition callback below
       }
+
+      // Start continuous watch — updates on every device movement
+      watchIdRef.current = await Geolocation.watchPosition(
+        { enableHighAccuracy: true, timeout: 10000 },
+        async (position, err) => {
+          if (err || !position) {
+            setGpsEnabled(false);
+            if (prevGpsRef.current !== false) {
+              prevGpsRef.current = false;
+              const name = employeeName || 'Employee';
+              const reason =
+                (err as any)?.code === 1
+                  ? 'Location permission denied.'
+                  : (err as any)?.code === 2
+                  ? 'Device GPS / Location services are OFF.'
+                  : 'Location unavailable.';
+              await raiseAlert(
+                `🚨 GPS DISABLED: ${name} — ${reason} Attendance check-in is now BLOCKED.`,
+                'critical'
+              );
+            }
+            return;
+          }
+
+          setLatitude(position.coords.latitude);
+          setLongitude(position.coords.longitude);
+          setGpsEnabled(true);
+          setPermissionDenied(false);
+          setLocationReady(true);
+
+          if (prevGpsRef.current === false) {
+            prevGpsRef.current = true;
+            const name = employeeName || 'Employee';
+            await raiseAlert(`✅ GPS RESTORED: ${name}'s device location is now active.`, 'info');
+          } else {
+            prevGpsRef.current = true;
+          }
+        }
+      );
     } catch (err: any) {
       setGpsEnabled(false);
       const wasOn = prevGpsRef.current;
@@ -91,11 +138,27 @@ export function useRealDeviceStatus(employeeName?: string): RealDeviceStatus {
         );
       }
     }
-  }, [employeeName]);
+  }, [employeeName, stopWatching]);
+
+  // Force an immediate one-shot position fetch (for the refresh button)
+  const refreshLocation = useCallback(async () => {
+    try {
+      const pos = await Geolocation.getCurrentPosition({
+        timeout: 10000,
+        enableHighAccuracy: true,
+      });
+      setLatitude(pos.coords.latitude);
+      setLongitude(pos.coords.longitude);
+      setGpsEnabled(true);
+      setPermissionDenied(false);
+      setLocationReady(true);
+    } catch (err: any) {
+      setGpsEnabled(false);
+    }
+  }, []);
 
   useEffect(() => {
     let networkListener: any;
-    let gpsInterval: ReturnType<typeof setInterval>;
 
     const init = async () => {
       setChecking(true);
@@ -125,7 +188,6 @@ export function useRealDeviceStatus(employeeName?: string): RealDeviceStatus {
         }
 
         if (!wasOnline && status.connected) {
-          // Flush queued offline alerts
           const queue: any[] = JSON.parse(localStorage.getItem('evron_offline_alerts') || '[]');
           for (const item of queue) {
             await raiseAlert(
@@ -142,19 +204,17 @@ export function useRealDeviceStatus(employeeName?: string): RealDeviceStatus {
       });
 
       // ── GPS ───────────────────────────────────────────────────────────────
-      await checkGps();
+      await startWatching();
       setChecking(false);
-
-      gpsInterval = setInterval(checkGps, 30000);
     };
 
     init();
 
     return () => {
       networkListener?.remove?.();
-      clearInterval(gpsInterval);
+      stopWatching();
     };
-  }, [checkGps]);
+  }, [startWatching, stopWatching, employeeName]);
 
-  return { gpsEnabled, permissionDenied, isOnline, latitude, longitude, checking };
+  return { gpsEnabled, permissionDenied, isOnline, latitude, longitude, checking, locationReady, refreshLocation };
 }
