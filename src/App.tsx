@@ -24,9 +24,9 @@ import {
   Radio,
   Settings as SettingsIcon,
   Sun,
-  Moon,
-  Sparkles
+  Moon
 } from 'lucide-react';
+import { App as CapApp } from '@capacitor/app';
 import { showAlert } from './utils/dialog';
 
 // Import Types
@@ -122,6 +122,29 @@ export default function App() {
   useEffect(() => {
     // Keep bottom nav persistently visible at all times for reliable iframe usability
     setIsBottomNavVisible(true);
+  }, [activeTab]);
+
+  // Hardware back button (Android) — navigate back instead of minimising
+  useEffect(() => {
+    let listener: any;
+    const setup = async () => {
+      listener = await CapApp.addListener('backButton', () => {
+        const tabOrder: typeof activeTab[] = ['Dashboard', 'Live', 'Productivity', 'More'];
+        if (activeTab !== 'Dashboard') {
+          // Sub-tabs like Leave/Attendance/Users go back to More
+          if (['Leave', 'Attendance', 'Day Summary', 'Users'].includes(activeTab)) {
+            setActiveTab('More');
+          } else {
+            setActiveTab('Dashboard');
+          }
+          window.scrollTo({ top: 0 });
+        } else {
+          CapApp.minimizeApp();
+        }
+      });
+    };
+    setup();
+    return () => { listener?.remove?.(); };
   }, [activeTab]);
 
   // Trigger login session retrieval
@@ -443,20 +466,6 @@ export default function App() {
             >
               <ShieldAlert className="w-3.5 h-3.5 text-red-500" />
               <span className="hidden md:inline">🛰️ COMPLIANCE HUB</span>
-            </button>
-
-            {/* Direct button to launch Framer Showcase Landing Page */}
-            <button
-              onClick={() => {
-                setActiveTab('Showcase');
-                handleClearPreSelectedTool();
-              }}
-              className="p-2 px-3 bg-gradient-to-r from-zinc-900 via-zinc-950 to-zinc-905 border border-zinc-850 hover:border-zinc-800 rounded-xl text-zinc-400 hover:text-white transition flex items-center justify-center shrink-0 cursor-pointer font-extrabold font-mono text-[9px] uppercase tracking-wider gap-2 shadow-sm h-10"
-              title="Return to Framer features showcase landing page"
-              id="header-framer-showcase-btn"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-rose-500 animate-pulse" />
-              <span className="hidden sm:inline">LAUNCH WEBSITE</span>
             </button>
 
             {/* Quick Theme Switcher */}
@@ -785,6 +794,7 @@ export default function App() {
               triggerHaptic(HAPTIC_PATTERNS.light);
               setActiveTab('Dashboard');
               handleClearPreSelectedTool();
+              window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             className={`flex flex-col items-center justify-center flex-1 py-1.5 text-center transition relative outline-none select-none ${
               activeTab === 'Dashboard' 
@@ -809,6 +819,7 @@ export default function App() {
               triggerHaptic(HAPTIC_PATTERNS.light);
               setActiveTab('Live');
               handleClearPreSelectedTool();
+              window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             className={`flex flex-col items-center justify-center flex-1 py-1.5 text-center transition relative outline-none select-none ${
               activeTab === 'Live' 
@@ -833,6 +844,7 @@ export default function App() {
               triggerHaptic(HAPTIC_PATTERNS.light);
               setActiveTab('Productivity');
               handleClearPreSelectedTool();
+              window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             className={`flex flex-col items-center justify-center flex-1 py-1.5 text-center transition relative outline-none select-none ${
               activeTab === 'Productivity' 
@@ -857,6 +869,7 @@ export default function App() {
               triggerHaptic(HAPTIC_PATTERNS.light);
               setActiveTab('More');
               handleClearPreSelectedTool();
+              window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             className={`flex flex-col items-center justify-center flex-1 py-1.5 text-center transition relative outline-none select-none ${
               ['More', 'Leave', 'Attendance', 'Day Summary', 'Users'].includes(activeTab)

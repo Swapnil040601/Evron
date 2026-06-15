@@ -843,68 +843,64 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
   const selectedEmployeeObj = employees.find(e => e.id === selectedEmpId) || employees[0];
 
   return (
-    <div className="space-y-6" id="productivity-compliance-module-container">
+    <div className="space-y-6 overflow-x-hidden w-full" id="productivity-compliance-module-container">
       {/* Upper Module Banner */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-zinc-800/80 pb-5">
+      <div className="flex flex-col gap-4 border-b border-zinc-800/80 pb-5">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white font-sans sm:text-3xl flex items-center gap-2">
             <Compass className="w-8 h-8 text-red-500 animate-spin-slow" />
-            Productivity & Compliance Hub
+            Productivity & Monitoring
           </h1>
-          <p className="text-xs text-zinc-400 mt-1 font-mono">
-            On-duty personnel roster streams, real-time uniform compliance audits, and corridor activity inspection.
-          </p>
         </div>
 
-        {/* Tab Selection */}
-        <div className="flex items-center bg-zinc-950 p-1 border border-zinc-850 rounded-lg shrink-0" id="tabs-compliance-sub">
+        {/* Tab Selection — horizontally scrollable on mobile */}
+        <div className="flex items-center bg-zinc-950 p-1 border border-zinc-850 rounded-lg overflow-x-auto shrink-0 max-w-full gap-0.5" id="tabs-compliance-sub" style={{ scrollbarWidth: 'none' }}>
           <button
             onClick={() => setActiveSubTab('tracker')}
-            className={`px-3 py-1.5 text-xs font-mono font-bold uppercase transition rounded-md flex items-center gap-1.5 cursor-pointer ${
-              activeSubTab === 'tracker' 
-                ? 'bg-red-500 text-white' 
+            className={`px-3 py-1.5 text-xs font-mono font-bold uppercase transition rounded-md flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+              activeSubTab === 'tracker'
+                ? 'bg-red-500 text-white'
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
             <MapIcon className="w-3.5 h-3.5" />
-            GPS & App Guard
+            Location & App
           </button>
           <button
             onClick={() => setActiveSubTab('ai_cameras')}
-            className={`px-3 py-1.5 text-xs font-mono font-bold uppercase transition rounded-md flex items-center gap-1.5 cursor-pointer ${
-              activeSubTab === 'ai_cameras' 
-                ? 'bg-red-500 text-white' 
+            className={`px-3 py-1.5 text-xs font-mono font-bold uppercase transition rounded-md flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+              activeSubTab === 'ai_cameras'
+                ? 'bg-red-500 text-white'
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
             <CameraIcon className="w-3.5 h-3.5 animate-pulse" />
-            AI Compliance Feed
+            Camera Feed
           </button>
           <button
             onClick={() => setActiveSubTab('excel_export')}
-            className={`px-3 py-1.5 text-xs font-mono font-bold uppercase transition rounded-md flex items-center gap-1.5 cursor-pointer ${
-              activeSubTab === 'excel_export' 
-                ? 'bg-red-500 text-white' 
+            className={`px-3 py-1.5 text-xs font-mono font-bold uppercase transition rounded-md flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+              activeSubTab === 'excel_export'
+                ? 'bg-red-500 text-white'
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
             <FileSpreadsheet className="w-3.5 h-3.5" />
-            Roster Ledger Excel
+            Export Report
           </button>
           <button
             onClick={() => {
               setActiveSubTab('gps_history');
-              // trigger refresh of logs
               apiService.getGpsLogs().then(logs => setGpsLogs(logs));
             }}
-            className={`px-3 py-1.5 text-xs font-mono font-bold uppercase transition rounded-md flex items-center gap-1.5 cursor-pointer ${
-              activeSubTab === 'gps_history' 
-                ? 'bg-red-500 text-white' 
+            className={`px-3 py-1.5 text-xs font-mono font-bold uppercase transition rounded-md flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+              activeSubTab === 'gps_history'
+                ? 'bg-red-500 text-white'
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
             <Compass className="w-3.5 h-3.5" />
-            GPS Telemetry History
+            Location History
           </button>
         </div>
       </div>
@@ -915,7 +911,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
           <div className="lg:col-span-4 bg-zinc-900/40 border border-zinc-800 p-4 rounded-xl flex flex-col justify-between max-h-[680px] overflow-hidden" id="staff-select-card-compliance">
             <div className="space-y-4">
               <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-                <span className="text-xs font-bold font-mono tracking-wider text-red-500 uppercase">GPS Patrol Roster</span>
+                <span className="text-xs font-bold font-mono tracking-wider text-red-500 uppercase">Active Staff</span>
                 <span className="text-[10px] bg-zinc-950 text-zinc-400 px-2 py-0.5 rounded font-mono border border-zinc-850">
                   {employees.filter(e => e.status !== 'On Leave').length} ACTIVE
                 </span>
@@ -1315,11 +1311,11 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
 
                     {selectedEmpState.isDeveloperModeOn ? (
                       <div className="bg-red-950/20 border border-red-900/20 p-2.5 rounded text-[10px] leading-relaxed text-red-400 font-sans">
-                        <strong>Developer Mode Detected on Client!</strong> The client's device has USB Debugging or Developer Options enabled. For security compliance, the <strong>Evron Watchtower App has shutdown and is blocked from starting</strong>. Access is completely denied.
+                        <strong>Developer Mode Detected!</strong> This device has USB Debugging or Developer Options enabled. The Evron app has been blocked from starting on this device. Contact your admin.
                       </div>
                     ) : (
                       <div className="bg-emerald-950/20 border border-emerald-900/20 p-2.5 rounded text-[10px] leading-relaxed text-zinc-400 font-sans">
-                        Device parameters are clean. Android Developer Options are toggled OFF. Secure on-duty tracking telemetry is transferring normally.
+                        Device is secure. Developer Options are disabled and location tracking is active.
                       </div>
                     )}
                   </div>
@@ -1429,7 +1425,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
               <div className="flex items-center justify-between border-b border-zinc-800 pb-2 mb-4">
                 <span className="text-xs font-bold font-mono text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
                   <Eye className="w-4 h-4 text-red-500" />
-                  AI Camera Compliance Event Logs
+                  Camera Event Logs
                 </span>
                 <span className="text-[9px] text-red-500 font-mono font-bold animate-pulse">● LIVE INTERIM CLOCK</span>
               </div>
@@ -1502,7 +1498,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
                 Live Database GPS Log Stream & Telemetry
               </h2>
               <p className="text-xs text-zinc-400 font-sans mt-0.5">
-                Real-time satellite coordinates telemetry harvested dynamically from worker devices and active biometric checkins.
+                Location history recorded from staff devices during check-in and check-out.
               </p>
             </div>
             
@@ -1539,7 +1535,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
               </div>
             ) : gpsLogs.length === 0 ? (
               <div className="py-20 text-center font-mono border border-dashed border-zinc-800 rounded-lg text-zinc-500 text-xs bg-zinc-950/40">
-                🚨 No GPS telemetry points registered in the database yet. Update device hardware state or trigger Biometric punch cards.
+                🚨 No location data recorded yet. Staff need to check in using the mobile app.
               </div>
             ) : (
               <div className="overflow-x-auto border border-zinc-800 rounded-lg bg-zinc-950">

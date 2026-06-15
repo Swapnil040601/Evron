@@ -39,6 +39,7 @@ import DeviceSimulator, { getDeviceHardwareState } from './DeviceSimulator';
 import AuraBackground from './AuraBackground';
 import { useRealDeviceStatus } from '../hooks/useRealDeviceStatus';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { App as CapApp } from '@capacitor/app';
 import LiveMap from './LiveMap';
 
 interface UserPortalProps {
@@ -49,17 +50,21 @@ interface UserPortalProps {
 export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
   const [activeSubTab, setActiveSubTab] = useState<'home' | 'attendance' | 'leave' | 'holidays' | 'profile'>('home');
 
-  // Sync sub-tab updates into browser history and listen to back button popstate
+  // Hardware back button — go to home sub-tab instead of minimising
   useEffect(() => {
-    localStorage.setItem('active-user-portal-tab', activeSubTab);
-    
-    const histState = window.history.state;
-    if (histState && histState.userPortalTab !== activeSubTab) {
-      window.history.pushState({
-        ...histState,
-        userPortalTab: activeSubTab
-      }, '');
-    }
+    let listener: any;
+    const setup = async () => {
+      listener = await CapApp.addListener('backButton', () => {
+        if (activeSubTab !== 'home') {
+          setActiveSubTab('home');
+          window.scrollTo({ top: 0 });
+        } else {
+          CapApp.minimizeApp();
+        }
+      });
+    };
+    setup();
+    return () => { listener?.remove?.(); };
   }, [activeSubTab]);
 
   useEffect(() => {
@@ -537,7 +542,7 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
             <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-zinc-800/60 pb-6">
               <div className="space-y-1">
                 <span className="text-[9px] font-mono font-black uppercase tracking-widest text-[#ef4444] bg-red-500/10 px-2 py-0.5 rounded border border-red-500/30">
-                  Value Gold Security Telemetry Active
+                  Monitoring Active
                 </span>
                 <h2 className="text-2xl font-black text-black dark:text-white tracking-tight">
                   Welcome back, {profile.name}!
@@ -650,7 +655,7 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
                       <span className={`text-2xl font-mono font-black mt-0.5 block ${hwState.idleMinutes > 15 ? 'text-amber-500' : 'text-emerald-400'}`}>
                         {hwState.idleMinutes} Minutes
                       </span>
-                      <span className="text-[9px] text-zinc-400">Idle guard telemetry reporting</span>
+                      <span className="text-[9px] text-zinc-400">Location & app monitoring</span>
                     </div>
                     <User className="w-10 h-10 text-amber-500/15 flex-shrink-0" />
                   </div>
@@ -876,7 +881,7 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
                 <div className="bg-emerald-950/15 border border-emerald-900/30 p-3 rounded-xl flex items-center gap-2 text-xs text-emerald-400">
                   <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full inline-block animate-ping flex-shrink-0" />
                   <span className="text-[10px] font-sans">
-                    <strong>Fitlight Mode: ON.</strong> Localized device telemetry and spatial checks are currently broadcasting to Superadmin Watchtower console.
+                    <strong>Location Tracking: ON.</strong> Your location is being shared with your manager in real time.
                   </span>
                 </div>
 
@@ -948,7 +953,7 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
             <div className="border-b border-zinc-900 pb-3 flex items-center justify-between">
               <div>
                 <h2 className="text-base font-bold text-white tracking-tight">Your Attendance History Log</h2>
-                <p className="text-[10px] text-zinc-500 font-mono">Consolidated biometric surveillance data matching YYYY-MM-DD</p>
+                <p className="text-[10px] text-zinc-500 font-mono">Your attendance records by date</p>
               </div>
               <span className="text-[10px] font-mono text-zinc-400">May 2026 Registry</span>
             </div>
@@ -1083,7 +1088,7 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
 
               {/* History List (md: 7) */}
               <div className="md:col-span-7 bg-zinc-950 border border-zinc-900 p-4 rounded-xl space-y-4">
-                <h3 className="text-xs font-bold font-mono text-zinc-400 uppercase tracking-wider">Your Applications Ledger</h3>
+                <h3 className="text-xs font-bold font-mono text-zinc-400 uppercase tracking-wider">Your Leave Applications</h3>
                 
                 <div className="space-y-3 max-h-[480px] overflow-y-auto pr-1">
                   {leaves.length === 0 ? (
@@ -1132,7 +1137,7 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
         {activeSubTab === 'holidays' && (
           <div className="space-y-6 animate-fadeIn">
             <div className="border-b border-zinc-900 pb-3">
-              <h2 className="text-base font-bold text-white tracking-tight">Calendar Holidays Ledger (2026)</h2>
+              <h2 className="text-base font-bold text-white tracking-tight">Public Holidays (2026)</h2>
               <p className="text-[10px] text-zinc-500 font-mono">Official annual exclusions list</p>
             </div>
 
@@ -1275,7 +1280,7 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
         <div className="max-w-md mx-auto flex items-center justify-between gap-1 px-4">
           
           <button
-            onClick={() => setActiveSubTab('home')}
+            onClick={() => { setActiveSubTab('home'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
             className={`flex flex-col items-center justify-center py-1 flex-1 text-center transition ${
               activeSubTab === 'home' ? 'text-red-500 font-bold' : 'text-zinc-500 hover:text-zinc-300'
             }`}
@@ -1285,7 +1290,7 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
           </button>
 
           <button
-            onClick={() => setActiveSubTab('attendance')}
+            onClick={() => { setActiveSubTab('attendance'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
             className={`flex flex-col items-center justify-center py-1 flex-1 text-center transition ${
               activeSubTab === 'attendance' ? 'text-red-500 font-bold' : 'text-zinc-500 hover:text-zinc-300'
             }`}
@@ -1295,7 +1300,7 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
           </button>
 
           <button
-            onClick={() => setActiveSubTab('leave')}
+            onClick={() => { setActiveSubTab('leave'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
             className={`flex flex-col items-center justify-center py-1 flex-1 text-center transition relative ${
               activeSubTab === 'leave' ? 'text-red-500 font-bold' : 'text-zinc-500 hover:text-zinc-300'
             }`}
@@ -1305,7 +1310,7 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
           </button>
 
           <button
-            onClick={() => setActiveSubTab('holidays')}
+            onClick={() => { setActiveSubTab('holidays'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
             className={`flex flex-col items-center justify-center py-1 flex-1 text-center transition ${
               activeSubTab === 'holidays' ? 'text-red-500 font-bold' : 'text-zinc-500 hover:text-zinc-300'
             }`}
@@ -1315,7 +1320,7 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
           </button>
 
           <button
-            onClick={() => setActiveSubTab('profile')}
+            onClick={() => { setActiveSubTab('profile'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
             className={`flex flex-col items-center justify-center py-1 flex-1 text-center transition ${
               activeSubTab === 'profile' ? 'text-red-500 font-bold' : 'text-zinc-500 hover:text-zinc-300'
             }`}

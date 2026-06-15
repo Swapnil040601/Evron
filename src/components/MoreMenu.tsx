@@ -114,8 +114,8 @@ export default function MoreMenu({
     },
     {
       id: 'Productivity',
-      name: 'Productivity & AI',
-      desc: 'GPS tracking, MDM app violation logs & AI camera rules',
+      name: 'Productivity',
+      desc: 'Location tracking, app monitoring & camera feed',
       icon: <ShieldAlert className="w-5 h-5 text-red-500 animate-pulse" />,
       tag: 'COMPLIANCE'
     }

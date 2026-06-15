@@ -241,7 +241,7 @@ export default function Attendance({ employees, onNavigate, initialFilter }: Att
           <div className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1">
               <span className="text-xs font-bold text-[#ef4444] font-mono tracking-wider">MONTH REVIEW // MAY 2026</span>
-              <h3 className="text-sm font-semibold text-zinc-200">AI Verified Attendance Density Heatmap</h3>
+              <h3 className="text-sm font-semibold text-zinc-200">Attendance Heatmap</h3>
               <p className="text-xs text-zinc-400">Indicates ratio of staff presence vs assigned lists daily. Weekend columns automatically bypass.</p>
             </div>
             

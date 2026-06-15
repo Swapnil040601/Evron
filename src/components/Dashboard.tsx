@@ -171,11 +171,10 @@ export default function Dashboard({
       </div>
 
       {/* Today's Attendance segmented progress bar */}
-      <div className="bg-zinc-900/70 border border-zinc-800/80 rounded-xl p-5" id="attendance-ratio-container">
+      <div className="bg-zinc-900/70 theme-light:bg-white/80 border border-zinc-800/80 theme-light:border-zinc-200 rounded-xl p-5" id="attendance-ratio-container">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
           <div>
-            <span className="text-xs font-bold font-mono tracking-widest text-[#ef4444]">TODAY'S ATTENDANCE MIX</span>
-            <h4 className="text-sm text-zinc-300 font-medium">Real-time status breakdown of rosters</h4>
+            <span className="text-xs font-bold font-mono tracking-widest text-[#ef4444]">TODAY'S ATTENDANCE</span>
           </div>
           <span className="text-xs text-zinc-400 font-mono">
             Roster: <span className="font-semibold text-white">{present + late}/{total} logged</span>
@@ -345,9 +344,8 @@ export default function Dashboard({
           <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-5 flex flex-col justify-between">
             <div>
               <h3 className="text-xs font-bold tracking-widest text-[#ef4444] font-mono uppercase mb-4 pb-2 border-b border-zinc-800/60">
-                Operational Shortcuts
+                Quick Actions
               </h3>
-              <p className="text-xs text-zinc-400 mb-4 font-mono">Navigate and launch components directly:</p>
 
               <div className="grid grid-cols-2 gap-3" id="shortcuts-grid">
                 <button
