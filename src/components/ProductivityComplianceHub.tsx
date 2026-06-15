@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { Employee } from '../types';
 import { apiService } from '../services/api';
+import LiveMap, { MapEmployee } from './LiveMap';
 
 interface ProductivityComplianceHubProps {
   employees: Employee[];
@@ -1025,123 +1026,28 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
                 <span>Active Geofence Radar: <strong className="text-white">{geofenceRadius}m radius</strong></span>
               </div>
 
-              {/* Visual simulated canvas area representing map */}
-              <div 
-                ref={mapRef}
-                onClick={handleMapClick}
-                className={`h-80 bg-zinc-950/90 relative flex items-center justify-center select-none overflow-hidden ${
-                  isDefiningGeofence ? 'cursor-crosshair ring-2 ring-inset ring-red-500/50 bg-red-950/5' : ''
-                }`} 
-                id="simulated-geofence-map shadow-inner"
-              >
-                {/* Geofence Grid Pattern */}
-                <div className="absolute inset-0 bg-grid-pattern opacity-15 pointer-events-none" />
-                
-                {/* Active Custom Defined Administrator Geofence Circle Overlay */}
-                {(() => {
-                  const gfLatDelta = (geofenceCenter.lat - 12.9716);
-                  const gfLngDelta = (geofenceCenter.lng - 77.5946);
-                  const gfVisualTop = 50 - (gfLatDelta * 10000);
-                  const gfVisualLeft = 50 + (gfLngDelta * 10000);
-                  const diameterPct = (geofenceRadius * 2) / 11.13;
-
-                  return (
-                    <div 
-                      className="absolute border border-dashed border-red-500/40 bg-red-500/5 rounded-full flex items-center justify-center animate-pulse-slow pointer-events-none transition-all duration-300"
-                      style={{
-                        top: `${gfVisualTop}%`,
-                        left: `${gfVisualLeft}%`,
-                        width: `${diameterPct}%`,
-                        height: `${diameterPct}%`,
-                        transform: 'translate(-50%, -50%)',
-                      }}
-                    >
-                      <span className="text-[7px] text-red-500/70 font-mono tracking-widest absolute -top-5 bg-zinc-950/95 px-1 border border-red-900/40 rounded font-bold">
-                        SECURE GEOPERIMETER ({geofenceRadius}M)
-                      </span>
-                    </div>
-                  );
-                })()}
-
-                {/* HQ Center Pin Marker */}
-                <div className="absolute flex flex-col items-center">
-                  <div className="w-3 h-3 bg-red-500 rounded-full border-2 border-white flex items-center justify-center shadow" />
-                  <span className="text-[8px] bg-red-950 border border-red-500/60 text-white px-2 py-0.5 rounded font-mono font-bold mt-1 shadow-md">
-                    EVRON BEN HQ
-                  </span>
-                </div>
-
-                {/* Selected Employee Live Node */}
-                {(() => {
-                  const latestCoord = {
-                    lat: selectedEmpState.activeLat,
-                    lng: selectedEmpState.activeLng
-                  };
-                  
-                  // Calculate distance from center
-                  const distance = getDistanceInMeters(
-                    latestCoord.lat,
-                    latestCoord.lng,
-                    geofenceCenter.lat,
-                    geofenceCenter.lng
-                  );
-
-                  const isOffsite = distance > geofenceRadius;
-                  
-                  // Calculate mock visual positioning offsets relative to center
-                  // Scale: 0.001 units = ~30px
-                  const latDelta = (latestCoord.lat - 12.9716);
-                  const lngDelta = (latestCoord.lng - 77.5946);
-                  
-                  const visualTop = 50 - (latDelta * 10000); 
-                  const visualLeft = 50 + (lngDelta * 10000);
-
-                  return (
-                    <div 
-                      className="absolute flex flex-col items-center transition-all duration-1000"
-                      style={{ 
-                        top: `${Math.max(10, Math.min(85, visualTop))}%`, 
-                        left: `${Math.max(10, Math.min(85, visualLeft))}%` 
-                      }}
-                    >
-                      <div className="relative">
-                        {/* Radial Ping pulse indicator */}
-                        <span className={`absolute -inset-2.5 rounded-full animate-ping ${isOffsite ? 'bg-amber-500/40' : 'bg-emerald-500/40'}`} />
-                        <div className={`w-4 h-4 rounded-full border-2 border-zinc-950 flex items-center justify-center ${isOffsite ? 'bg-amber-500' : 'bg-emerald-500'} shadow`}>
-                          <MapPin className="w-2.5 h-2.5 text-white" />
-                        </div>
-                      </div>
-                      
-                      <div className="bg-zinc-950/95 border border-zinc-700/80 p-2 rounded shadow-xl mt-2 tracking-tight flex flex-col items-center leading-normal text-center shrink-0 min-w-[145px] z-10">
-                        <span className="text-[9px] font-bold text-white">{selectedEmployeeObj?.name}</span>
-                        <span className="text-[8px] text-zinc-400 font-mono">
-                          {latestCoord.lat.toFixed(5)}, {latestCoord.lng.toFixed(5)}
-                        </span>
-                        <span className={`text-[7px] font-mono font-bold uppercase mt-1 px-1 py-0.5 rounded ${
-                          isOffsite 
-                            ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' 
-                            : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                        }`}>
-                          {isOffsite ? `⚠️ BREACHED (${distance.toFixed(0)}m)` : `🎯 SECURE (${distance.toFixed(0)}m)`}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* Interactive Mode Information Message */}
-                {isDefiningGeofence && (
-                  <div className="absolute top-4 left-4 right-4 bg-red-950 border border-red-500 text-white p-2.5 rounded-lg text-center font-mono text-[9px] uppercase tracking-wider animate-pulse font-bold shadow-xl z-20">
-                    🎯 Interactive Drawing Mode Active: Click anywhere on the map grid to lock geofence center point coordinate!
-                  </div>
-                )}
-
-                {/* Watermark indicators */}
-                <div className="absolute bottom-3 left-4 text-[9px] font-mono text-zinc-500 flex items-center gap-1">
-                  <Compass className="w-3 h-3 text-red-500" />
-                  <span>GPS FEED: STACK REFRESH RATE 10 Sec</span>
-                </div>
-              </div>
+              {/* Real Leaflet map with employee GPS pins */}
+              <LiveMap
+                centerLat={geofenceCenter.lat}
+                centerLng={geofenceCenter.lng}
+                zoom={15}
+                geofenceRadius={geofenceRadius}
+                height="360px"
+                employees={employees.map(emp => {
+                  const st = employeeStates[emp.id];
+                  const lat = st?.activeLat ?? geofenceCenter.lat;
+                  const lng = st?.activeLng ?? geofenceCenter.lng;
+                  const inside = getDistanceInMeters(lat, lng, geofenceCenter.lat, geofenceCenter.lng) <= geofenceRadius;
+                  return {
+                    id: emp.id,
+                    name: emp.name,
+                    lat,
+                    lng,
+                    status: emp.status,
+                    insideGeofence: inside,
+                  } as MapEmployee;
+                })}
+              />
 
               {/* Geofence Administrator Custom Config Panel */}
               <div className="border-t border-zinc-850 p-4 bg-zinc-900/40 space-y-4">

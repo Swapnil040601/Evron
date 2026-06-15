@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Employee, EmployeeStatus } from '../types';
-import { Search, UserPlus, ShieldAlert, ArrowLeft, Mail, Phone, Award, CheckCircle2 } from 'lucide-react';
+import { Search, UserPlus, ShieldAlert, ArrowLeft, Mail, Phone, Award, CheckCircle2, Camera, Upload } from 'lucide-react';
 import { showAlert } from '../utils/dialog';
 
 interface UsersProps {
@@ -24,6 +24,9 @@ export default function Users({ employees, onAddEmployee }: UsersProps) {
   const [newEmpEmail, setNewEmpEmail] = useState('');
   const [newEmpPhone, setNewEmpPhone] = useState('');
   const [newEmpStatus, setNewEmpStatus] = useState<EmployeeStatus>('Present');
+  const [facePhoto, setFacePhoto] = useState<File | null>(null);
+  const [facePhotoPreview, setFacePhotoPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Filter employees
   const filteredUsers = employees.filter(emp => {
@@ -42,7 +45,6 @@ export default function Users({ employees, onAddEmployee }: UsersProps) {
 
     // Auto calculate random values
     const newId = `EMP00${employees.length + 1}`;
-    const faceMatchedId = `FACE-${Math.floor(Math.random() * 9000) + 1000}`;
     const randomAvatars = [
       'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80',
       'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&auto=format&fit=crop&q=80',
@@ -61,11 +63,23 @@ export default function Users({ employees, onAddEmployee }: UsersProps) {
       status: newEmpStatus,
       attendanceRate: 95,
       phone: newEmpPhone || '+1 (555) 019-0000',
-      faceMatchedId,
+      faceStatus: facePhoto ? 'pending' : 'none',
       checkInTime: newEmpStatus === 'Present' ? '09:00 AM' : undefined
     };
 
     onAddEmployee(newEmp);
+
+    if (facePhoto) {
+      const queue: any[] = JSON.parse(localStorage.getItem('evron_face_queue') || '[]');
+      queue.push({
+        empId: newId,
+        empName: newEmpName,
+        fileName: facePhoto.name,
+        submittedAt: new Date().toISOString(),
+        status: 'pending'
+      });
+      localStorage.setItem('evron_face_queue', JSON.stringify(queue));
+    }
 
     // Reset Form
     setNewEmpName('');
@@ -73,6 +87,8 @@ export default function Users({ employees, onAddEmployee }: UsersProps) {
     setNewEmpEmail('');
     setNewEmpPhone('');
     setNewEmpStatus('Present');
+    setFacePhoto(null);
+    setFacePhotoPreview(null);
     setShowAddForm(false);
   };
 
@@ -111,8 +127,8 @@ export default function Users({ employees, onAddEmployee }: UsersProps) {
         /* REGISTER NEW EMPLOYEE FORM BLOCK */
         <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-6 max-w-2xl mx-auto space-y-6" id="add-employee-form-block">
           <div className="border-b border-zinc-800 pb-3">
-            <h2 className="text-sm font-bold text-white tracking-tight uppercase font-mono text-[#ef4444]">Biometric Enroll Wizard</h2>
-            <p className="text-xs text-zinc-500 mt-1">Provide full name and corporate email. Camera system triggers automated facial matching template index creation.</p>
+            <h2 className="text-sm font-bold text-white tracking-tight uppercase font-mono text-[#ef4444]">Employee Registration</h2>
+            <p className="text-xs text-zinc-500 mt-1">Provide full name and corporate email. Optionally upload a face photo — admin will review and approve it.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -198,12 +214,48 @@ export default function Users({ employees, onAddEmployee }: UsersProps) {
               </div>
             </div>
 
+            {/* Face Photo Upload */}
+            <div className="space-y-2 border-t border-zinc-800 pt-4">
+              <label className="text-[10px] text-zinc-400 font-mono font-semibold block uppercase">Face Photo (Optional — Pending Admin Approval)</label>
+              <div
+                className="border border-dashed border-zinc-700 rounded-lg p-4 flex flex-col items-center gap-2 cursor-pointer hover:border-emerald-600 transition"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {facePhotoPreview ? (
+                  <img src={facePhotoPreview} alt="preview" className="w-20 h-20 object-cover rounded-full border border-zinc-700" />
+                ) : (
+                  <>
+                    <Camera className="w-6 h-6 text-zinc-500" />
+                    <span className="text-[10px] text-zinc-500 font-mono">Click to upload face photo</span>
+                  </>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setFacePhoto(file);
+                      setFacePhotoPreview(URL.createObjectURL(file));
+                    }
+                  }}
+                />
+              </div>
+              {facePhoto && (
+                <p className="text-[10px] text-amber-400 font-mono flex items-center gap-1">
+                  <Upload className="w-3 h-3" /> Photo queued for admin approval after submission
+                </p>
+              )}
+            </div>
+
             <div className="pt-4 border-t border-zinc-800 flex justify-end">
               <button
                 type="submit"
                 className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-semibold font-mono text-xs rounded-lg transition shadow-lg"
               >
-                ENROLL PATTERN PROFILE & SUBMIT
+                REGISTER & SUBMIT
               </button>
             </div>
           </form>

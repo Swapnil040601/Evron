@@ -44,6 +44,35 @@ export default function LiveView({ cameras, trackLogs, onTriggerAlert, onClearAl
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
+  // Direct RTSP camera quick-add
+  const [directCamName, setDirectCamName] = useState('');
+  const [directCamRtsp, setDirectCamRtsp] = useState('');
+  const [directCamLocation, setDirectCamLocation] = useState('');
+  const [isAddingDirect, setIsAddingDirect] = useState(false);
+  const [directMsg, setDirectMsg] = useState('');
+
+  const handleAddDirectCamera = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!directCamRtsp.startsWith('rtsp://')) {
+      setDirectMsg('RTSP URL must start with rtsp://');
+      return;
+    }
+    setIsAddingDirect(true);
+    setDirectMsg('');
+    try {
+      await apiService.addDirectCamera({ name: directCamName, rtspUrl: directCamRtsp, location: directCamLocation });
+      setDirectMsg('Camera added successfully!');
+      setDirectCamName('');
+      setDirectCamRtsp('');
+      setDirectCamLocation('');
+      if (onRefreshCameras) onRefreshCameras();
+    } catch (err: any) {
+      setDirectMsg(err.message || 'Failed to add camera.');
+    } finally {
+      setIsAddingDirect(false);
+    }
+  };
+
   // Scanning state
   const [scanningNvrId, setScanningNvrId] = useState<string | null>(null);
   const [scanProgress, setScanProgress] = useState(0);
@@ -775,6 +804,59 @@ export default function LiveView({ cameras, trackLogs, onTriggerAlert, onClearAl
                   )}
                 </button>
               </form>
+
+              {/* Direct RTSP Camera */}
+              <div className="pt-4 border-t border-zinc-800/60">
+                <h3 className="text-sm font-bold text-white font-mono tracking-wide mb-1">ADD DIRECT RTSP CAMERA</h3>
+                <p className="text-xs text-zinc-400 mb-3">Single IP camera without NVR — enter the RTSP stream URL directly</p>
+                <form onSubmit={handleAddDirectCamera} className="space-y-3">
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-bold text-zinc-400 font-mono tracking-wider uppercase block">Camera Name</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Front Gate Camera"
+                      value={directCamName}
+                      onChange={e => setDirectCamName(e.target.value)}
+                      className="w-full bg-zinc-950 border border-zinc-800/80 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-zinc-500 font-mono placeholder:text-zinc-650"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-bold text-zinc-400 font-mono tracking-wider uppercase block">RTSP Stream URL</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="rtsp://admin:pass@192.168.1.64:554/stream"
+                      value={directCamRtsp}
+                      onChange={e => setDirectCamRtsp(e.target.value)}
+                      className="w-full bg-zinc-950 border border-zinc-800/80 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-zinc-500 font-mono placeholder:text-zinc-650"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-bold text-zinc-400 font-mono tracking-wider uppercase block">Location Label</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Main Entrance"
+                      value={directCamLocation}
+                      onChange={e => setDirectCamLocation(e.target.value)}
+                      className="w-full bg-zinc-950 border border-zinc-800/80 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-zinc-500 font-mono placeholder:text-zinc-650"
+                    />
+                  </div>
+                  {directMsg && (
+                    <p className={`text-[10px] font-mono ${directMsg.includes('success') ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {directMsg}
+                    </p>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={isAddingDirect}
+                    className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-600 disabled:bg-zinc-800 text-white rounded-lg text-[10px] font-black font-mono tracking-widest uppercase flex items-center justify-center gap-2 transition"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    {isAddingDirect ? 'ADDING...' : 'ADD CAMERA'}
+                  </button>
+                </form>
+              </div>
             </div>
 
           </div>

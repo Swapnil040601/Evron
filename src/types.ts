@@ -177,7 +177,7 @@ export interface Employee {
   checkOutTime?: string;
   attendanceRate: number;
   phone: string;
-  faceMatchedId: string;
+  faceStatus?: 'none' | 'pending' | 'approved' | 'rejected';
 }
 
 export interface ActivityLog {

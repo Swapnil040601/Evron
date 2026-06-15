@@ -10,14 +10,14 @@ export const initialEmployees: Employee[] = [
     id: 'EMP001',
     name: 'Sarah Jenkins',
     avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&auto=format&fit=crop&q=80',
-    role: 'Lead AI Engineer',
+    role: 'Lead Software Engineer',
     department: 'Engineering',
     email: 'sarah.j@company.com',
     status: 'Present',
     checkInTime: '08:45 AM',
     attendanceRate: 98,
     phone: '+1 (555) 019-2834',
-    faceMatchedId: 'FACE-9921'
+    faceStatus: 'approved'
   },
   {
     id: 'EMP002',
@@ -30,7 +30,7 @@ export const initialEmployees: Employee[] = [
     checkInTime: '09:32 AM',
     attendanceRate: 92,
     phone: '+1 (555) 019-8831',
-    faceMatchedId: 'FACE-3120'
+    faceStatus: 'approved'
   },
   {
     id: 'EMP003',
@@ -43,7 +43,7 @@ export const initialEmployees: Employee[] = [
     checkInTime: '08:50 AM',
     attendanceRate: 96,
     phone: '+1 (555) 019-4452',
-    faceMatchedId: 'FACE-8025'
+    faceStatus: 'approved'
   },
   {
     id: 'EMP004',
@@ -56,7 +56,7 @@ export const initialEmployees: Employee[] = [
     checkInTime: '07:55 AM',
     attendanceRate: 100,
     phone: '+1 (555) 019-7711',
-    faceMatchedId: 'FACE-4491'
+    faceStatus: 'approved'
   },
   {
     id: 'EMP005',
@@ -68,7 +68,7 @@ export const initialEmployees: Employee[] = [
     status: 'On Leave',
     attendanceRate: 94,
     phone: '+1 (555) 019-6123',
-    faceMatchedId: 'FACE-1082'
+    faceStatus: 'none'
   },
   {
     id: 'EMP006',
@@ -80,7 +80,7 @@ export const initialEmployees: Employee[] = [
     status: 'Absent',
     attendanceRate: 88,
     phone: '+1 (555) 019-9150',
-    faceMatchedId: 'FACE-7214'
+    faceStatus: 'approved'
   },
   {
     id: 'EMP007',
@@ -93,7 +93,7 @@ export const initialEmployees: Employee[] = [
     checkInTime: '08:58 AM',
     attendanceRate: 97,
     phone: '+1 (555) 019-3388',
-    faceMatchedId: 'FACE-5591'
+    faceStatus: 'approved'
   },
   {
     id: 'EMP008',
@@ -106,7 +106,7 @@ export const initialEmployees: Employee[] = [
     checkInTime: '09:18 AM',
     attendanceRate: 91,
     phone: '+1 (555) 019-2219',
-    faceMatchedId: 'FACE-2911'
+    faceStatus: 'approved'
   }
 ];
 
@@ -115,9 +115,9 @@ export const initialActivityLogs: ActivityLog[] = [
     id: 'ACT001',
     type: 'check_in',
     employeeName: 'Sarah Jenkins',
-    role: 'Lead AI Engineer',
+    role: 'Lead Software Engineer',
     department: 'Engineering',
-    detail: 'Face Recognition Match (99.8% precision)',
+    detail: 'Biometric check-in verified',
     time: '08:45 AM',
     cameraName: 'Main Entrance (Block A)'
   },
@@ -127,7 +127,7 @@ export const initialActivityLogs: ActivityLog[] = [
     employeeName: 'Amara Okafor',
     role: 'Operations Director',
     department: 'Operations',
-    detail: 'Face Recognition Match (98.9% precision)',
+    detail: 'Biometric check-in verified',
     time: '08:50 AM',
     cameraName: 'Main Entrance (Block A)'
   },
@@ -137,7 +137,7 @@ export const initialActivityLogs: ActivityLog[] = [
     employeeName: 'Elena Rostova',
     role: 'Frontend Architect',
     department: 'Engineering',
-    detail: 'Face Recognition Match (99.1% precision)',
+    detail: 'Biometric check-in verified',
     time: '08:58 AM',
     cameraName: 'Server Room Entrance'
   },
@@ -155,7 +155,7 @@ export const initialActivityLogs: ActivityLog[] = [
     employeeName: 'Carlos Mendez',
     role: 'Support Engineer',
     department: 'Operations',
-    detail: 'Face Recognition Match (97.4% precision) - Marked Late',
+    detail: 'Biometric check-in verified - Marked Late',
     time: '09:18 AM',
     cameraName: 'Main Entrance (Block A)'
   },
@@ -165,7 +165,7 @@ export const initialActivityLogs: ActivityLog[] = [
     employeeName: 'Michael Chen',
     role: 'Product Designer',
     department: 'Design',
-    detail: 'Authorized access - High-contrast face match (96.2%) - Marked Late',
+    detail: 'Authorized access verified - Marked Late',
     time: '09:32 AM',
     cameraName: 'Parking Lot Exit'
   },
@@ -313,7 +313,7 @@ export const initialTrackLogs: ActivityLog[] = [
     id: 'TRK003',
     type: 'system',
     cameraName: 'Parking Lot B Gate',
-    detail: 'Smart AI trigger: Vehicle #TX-9021-A detected entering parking structure.',
+    detail: 'Vehicle #TX-9021-A detected entering parking structure.',
     time: '08:52 AM',
     duration: '2.5s'
   },
@@ -495,7 +495,7 @@ export const initialSecurityEvents: SecurityEvent[] = [
     id: 'SE002',
     source: 'Secured',
     type: 'info',
-    message: 'Main gate facial capture relay activated successfully.',
+    message: 'Main gate entry system activated successfully.',
     timestamp: '2026-05-24 08:30 AM'
   },
   {

@@ -5,9 +5,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { apiService, SIMULATOR_ACCOUNTS } from '../services/api';
-import { ShieldCheck, Server, AlertTriangle, Eye, EyeOff, Radio, Sparkles, LogIn, ExternalLink, Sun, Moon } from 'lucide-react';
+import { ShieldCheck, Server, AlertTriangle, Eye, EyeOff, Radio, Sparkles, LogIn, ExternalLink, Sun, Moon, Fingerprint } from 'lucide-react';
 import { UserProfile } from '../types';
 import DeviceSimulator, { getDeviceHardwareState } from './DeviceSimulator';
+import { BiometricAuth } from '@aparajita/capacitor-biometric-auth';
+import { Geolocation } from '@capacitor/geolocation';
 
 interface LoginProps {
   onLoginSuccess: (user: UserProfile) => void;
@@ -19,6 +21,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
 
   // Theme support
   const [themeTrigger, setThemeTrigger] = useState(0);
@@ -43,7 +46,42 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     setEndpointUrl(config.baseUrl);
     setUseLive(config.useLive);
     loadAppConfig();
+    checkBiometric();
   }, []);
+
+  const checkBiometric = async () => {
+    try {
+      const result = await BiometricAuth.checkBiometry();
+      const hasToken = !!localStorage.getItem('evron_biometric_token');
+      setBiometricAvailable(result.isAvailable && hasToken);
+    } catch {
+      setBiometricAvailable(false);
+    }
+  };
+
+  const handleBiometricLogin = async () => {
+    setIsConnecting(true);
+    setErrorMessage(null);
+    try {
+      await BiometricAuth.authenticate({
+        reason: 'Login to Evron',
+        cancelTitle: 'Cancel',
+        allowDeviceCredential: true,
+        iosFallbackTitle: 'Use Passcode',
+        androidTitle: 'Biometric Login',
+        androidSubtitle: 'Use your fingerprint or face to sign in',
+      });
+      const token = localStorage.getItem('evron_biometric_token');
+      if (!token) throw new Error('No saved session. Please login with password first.');
+      localStorage.setItem('evron_jwt_token', token);
+      const user = await apiService.getProfile();
+      onLoginSuccess(user);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Biometric authentication failed.');
+    } finally {
+      setIsConnecting(false);
+    }
+  };
 
   const loadAppConfig = async () => {
     try {
@@ -68,15 +106,30 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     }
   };
 
+  const checkRealGps = async (): Promise<boolean> => {
+    try {
+      let perm = await Geolocation.checkPermissions();
+      if (perm.location === 'prompt' || perm.location === 'prompt-with-rationale') {
+        const req = await Geolocation.requestPermissions({ permissions: ['location'] });
+        perm = req;
+      }
+      if (perm.location === 'denied') return false;
+      await Geolocation.getCurrentPosition({ timeout: 8000, enableHighAccuracy: false });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsConnecting(true);
     setErrorMessage(null);
 
-    // GPS Status Gate Check
-    const hw = getDeviceHardwareState();
-    if (hw.gpsStatus === 'off') {
-      setErrorMessage('GPS Signal Error: Device Location coordinates are inactive. Employee-based authentication forbids logins with Geolocation services turned off. Please turn on your device GPS to verify compliance.');
+    // Real GPS enforcement
+    const gpsOk = await checkRealGps();
+    if (!gpsOk) {
+      setErrorMessage('Location services are OFF or permission denied. Please enable GPS / Location on your device to log in.');
       setIsConnecting(false);
       return;
     }
@@ -86,6 +139,8 @@ export default function Login({ onLoginSuccess }: LoginProps) {
       const recaptchaToken = appConfig?.recaptcha_site_key ? 'simulated-recaptcha-token' : '';
 
       const res = await apiService.login(email, password, recaptchaToken);
+      const token = localStorage.getItem('evron_jwt_token');
+      if (token) localStorage.setItem('evron_biometric_token', token);
       onLoginSuccess(res.user);
     } catch (err: any) {
       setErrorMessage(err.message || 'Authentication error. Please check your credentials.');
@@ -101,10 +156,10 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     setEmail(acc.email);
     setPassword(acc.pass);
 
-    // GPS Status Gate Check
-    const hw = getDeviceHardwareState();
-    if (hw.gpsStatus === 'off') {
-      setErrorMessage('GPS Signal Error: Device Location coordinates are inactive. Employee-based authentication forbids logins with Geolocation services turned off. Please turn on your device GPS to verify compliance.');
+    // Real GPS enforcement
+    const gpsOk = await checkRealGps();
+    if (!gpsOk) {
+      setErrorMessage('Location services are OFF or permission denied. Please enable GPS / Location on your device to log in.');
       setIsConnecting(false);
       return;
     }
@@ -170,10 +225,10 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             </div>
             
             <h1 className="text-xl font-black tracking-tight text-white font-sans sm:text-2xl uppercase">
-              {appConfig?.name || "EVRON AI SUITE"}
+              {appConfig?.name || "EVRON SUITE"}
             </h1>
             <p className="text-xs font-mono text-zinc-400 tracking-wider">
-              {appConfig?.tag_line || "AI Attendance & Security Dashboard"}
+              {appConfig?.tag_line || "Attendance & Security Dashboard"}
             </p>
           </div>
 
@@ -236,6 +291,18 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               <LogIn className="w-4 h-4 shrink-0" />
               {isConnecting ? 'AUTHENTICATING SECURE NETWORK...' : 'AUTHENTICATE SYSTEM'}
             </button>
+
+            {biometricAvailable && (
+              <button
+                type="button"
+                disabled={isConnecting}
+                onClick={handleBiometricLogin}
+                className="w-full py-3 btn-glass text-white font-semibold font-mono text-xs rounded-xl tracking-wider disabled:opacity-50 flex items-center justify-center gap-2 uppercase cursor-pointer border border-zinc-800 hover:border-zinc-600 transition"
+              >
+                <Fingerprint className="w-4 h-4 shrink-0 text-emerald-400" />
+                USE BIOMETRIC LOGIN
+              </button>
+            )}
           </form>
 
           {/* Preset quick test accounts segment */}

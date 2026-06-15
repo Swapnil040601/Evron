@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { Utensils, Zap, Calendar, Settings as SettingsIcon, Flame, ShieldAlert, MonitorCheck, FileSpreadsheet, ArrowLeft, Smartphone } from 'lucide-react';
+import { Utensils, Zap, Calendar, Settings as SettingsIcon, Flame, ShieldAlert, FileSpreadsheet, ArrowLeft } from 'lucide-react';
 
 // Import subcomponents
 import Canteen from './Canteen';
@@ -106,13 +106,6 @@ export default function MoreMenu({
       tag: 'BYPASS'
     },
     {
-      id: 'Monitor',
-      name: 'NVR / Monitor',
-      desc: 'Bandwidth, CPU & storage pool',
-      icon: <MonitorCheck className="w-5 h-5 text-violet-400" />,
-      tag: 'HARDWARE'
-    },
-    {
       id: 'Reports',
       name: 'Reports Engine',
       desc: 'Excel and XLS summary reports',
@@ -165,10 +158,6 @@ export default function MoreMenu({
 
           {activeTool === 'Secured' && (
             <AdminStatus mode="Secured" events={securityEvents} onAddEvent={onAddSecurityEvent} />
-          )}
-
-          {activeTool === 'Monitor' && (
-            <AdminStatus mode="Monitor" events={securityEvents} onAddEvent={onAddSecurityEvent} />
           )}
 
           {activeTool === 'Reports' && (

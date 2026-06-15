@@ -33,7 +33,9 @@ export default function HlsVideoTile({ cameraId, streamType = 'sub' }: Props) {
         if (!res.ok) throw new Error('hls-start failed');
         const data = await res.json();
         streamNameRef.current = data.stream_name;
-        const hlsUrl = `/hls/${data.stream_name}/index.m3u8?cookieCheck=1`;
+        // Use full hls_url from backend if provided, otherwise point to MediaMTX on port 8888
+        const hlsUrl = data.hls_url
+          || `http://${window.location.hostname}:8888/${data.stream_name}/index.m3u8`;
 
         keepaliveRef.current = setInterval(() => {
           const t = localStorage.getItem('evron_jwt_token');

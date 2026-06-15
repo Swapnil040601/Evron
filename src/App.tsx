@@ -137,12 +137,23 @@ export default function App() {
 
   const checkActiveSession = async () => {
     setIsAuthLoading(true);
+
+    const withTimeout = <T,>(promise: Promise<T>, ms: number): Promise<T> =>
+      Promise.race([
+        promise,
+        new Promise<T>((_, reject) =>
+          setTimeout(() => reject(new Error('timeout')), ms)
+        ),
+      ]);
+
     try {
       let token = apiService.getToken();
       if (!token) {
-        // Auto-login on cold start so data is visible immediately as soon as they open
         try {
-          const res = await apiService.login('admin@evronnetworks.com', 'Admin@123');
+          const res = await withTimeout(
+            apiService.login('admin@evronnetworks.com', 'Admin@123'),
+            8000
+          );
           token = res.token;
         } catch (e) {
           console.warn('Startup login fallback unsuccessful:', e);
@@ -150,7 +161,7 @@ export default function App() {
       }
 
       if (token) {
-        const profile = await apiService.getProfile();
+        const profile = await withTimeout(apiService.getProfile(), 8000);
         setCurrentUser(profile);
       }
     } catch (err) {
@@ -205,7 +216,7 @@ export default function App() {
             status: user.id === 5 ? 'On Leave' : 'Present', // simulation compliance rate
             attendanceRate: 98 - (user.id * 2),
             phone: user.phone,
-            faceMatchedId: `FACE-${1000 + user.id}`
+            faceStatus: 'approved' as const
           });
         }
       });
@@ -371,9 +382,12 @@ export default function App() {
   // Render Gatekeepers
   if (isAuthLoading) {
     return (
-      <div className="min-h-screen bg-black flex flex-col items-center justify-center font-mono text-xs text-red-500 gap-4 uppercase select-none">
-        <div className="w-8 h-8 rounded border border-dotted border-red-500 animate-spin" />
-        <span>Validating security credential context...</span>
+      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center gap-6 select-none">
+        <div className="w-14 h-14 rounded-xl bg-red-600 flex items-center justify-center font-black text-white text-xl shadow-lg rotate-3 border border-red-500/20">
+          EN
+        </div>
+        <div className="w-10 h-10 rounded-full border-2 border-red-600 border-t-transparent animate-spin" />
+        <span className="font-mono text-sm text-zinc-400 uppercase tracking-widest">Loading...</span>
       </div>
     );
   }

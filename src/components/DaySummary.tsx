@@ -156,7 +156,7 @@ export default function DaySummary({ employees }: DaySummaryProps) {
         <div className="lg:col-span-7 bg-zinc-900/50 border border-zinc-800 rounded-xl p-5" id="hourly-check-ins-column">
           <div className="border-b border-zinc-800 pb-3 mb-5">
             <h3 className="text-xs font-bold font-mono tracking-widest text-[#ef4444] uppercase">Hourly Scanned Access Curve</h3>
-            <p className="text-xs text-zinc-400 mt-1">Aggregated check-in load registered via all face recognition units</p>
+            <p className="text-xs text-zinc-400 mt-1">Aggregated check-in load registered via all entry units</p>
           </div>
 
           {/* Custon CSS Bar Chart */}

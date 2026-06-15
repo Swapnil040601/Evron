@@ -35,6 +35,9 @@ import {
 } from 'lucide-react';
 import DeviceSimulator, { getDeviceHardwareState } from './DeviceSimulator';
 import AuraBackground from './AuraBackground';
+import { useRealDeviceStatus } from '../hooks/useRealDeviceStatus';
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import LiveMap from './LiveMap';
 
 interface UserPortalProps {
   currentUser: UserProfile;
@@ -125,6 +128,9 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
   const [notification, setNotification] = useState<{ type: 'success' | 'err'; msg: string } | null>(null);
   const [hwState, setHwState] = useState(getDeviceHardwareState());
 
+  // Real device GPS + internet status (replaces mock for enforcement)
+  const realDevice = useRealDeviceStatus(profile.name);
+
   // Scroll tracking to show/hide lower menu
   const [isBottomNavVisible, setIsBottomNavVisible] = useState(true);
   const lastScrollY = useRef(0);
@@ -172,7 +178,12 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
   const [selfiePunchIn, setSelfiePunchIn] = useState<string | null>(localStorage.getItem('selfie_punch_in') || null);
   const [selfieDestination, setSelfieDestination] = useState<string | null>(localStorage.getItem('selfie_destination') || null);
   const [selfiePunchOut, setSelfiePunchOut] = useState<string | null>(localStorage.getItem('selfie_punch_out') || null);
-  
+
+  // Real photo base64 previews
+  const [selfiePunchInImg, setSelfiePunchInImg] = useState<string | null>(localStorage.getItem('selfie_punch_in_img') || null);
+  const [selfieDestinationImg, setSelfieDestinationImg] = useState<string | null>(localStorage.getItem('selfie_destination_img') || null);
+  const [selfiePunchOutImg, setSelfiePunchOutImg] = useState<string | null>(localStorage.getItem('selfie_punch_out_img') || null);
+
   const [activeSelfieType, setActiveSelfieType] = useState<'punch_in' | 'destination' | 'punch_out' | null>(null);
   const [isSelfieCapturing, setIsSelfieCapturing] = useState(false);
 
@@ -254,10 +265,16 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
 
   // Clock in simulator action
   const handleClockInOut = async () => {
-    // GPS Status Gate Check
-    const hw = getDeviceHardwareState();
-    if (hw.gpsStatus === 'off') {
-      triggerBanner('err', 'GPS signal link inactive! Under Evron high-security standards, you cannot submit biometric attendance check-ins with your device location off.');
+    // Real GPS enforcement
+    if (!realDevice.gpsEnabled) {
+      const msg = realDevice.permissionDenied
+        ? 'Location permission denied. Please grant location access in Settings to check in.'
+        : 'GPS / Location services are OFF. Turn on your device location to submit attendance.';
+      triggerBanner('err', msg);
+      return;
+    }
+    if (!realDevice.isOnline) {
+      triggerBanner('err', 'No internet connection. Connect to WiFi or mobile data to check in.');
       return;
     }
 
@@ -267,9 +284,11 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
     setTimeout(async () => {
       try {
         const nextStatus = todayAttendance?.status === 'Present' ? 'Absent' : 'Present';
-        const remarks = nextStatus === 'Present' 
-          ? `Face check-in camera bypass (${hw.latitude.toFixed(4)}, ${hw.longitude.toFixed(4)})` 
-          : `Check out logged (${hw.latitude.toFixed(4)}, ${hw.longitude.toFixed(4)})`;
+        const lat = realDevice.latitude;
+        const lng = realDevice.longitude;
+        const remarks = nextStatus === 'Present'
+          ? `Check-in verified (${lat.toFixed(4)}, ${lng.toFixed(4)})`
+          : `Check-out logged (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
         
         let targetId = todayAttendance?.id;
         if (!targetId) {
@@ -282,33 +301,33 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
           remarks
         });
 
-        // Report GPS log to backend in real time!
+        // Report GPS log to backend with real coordinates
         try {
           await apiService.reportGpsLog({
             employeeId: profile?.code || 'EMP001',
             employeeName: profile?.name || 'Staff Member',
             avatar: profile?.avatar || 'avatars/1.jpg',
-            lat: hw.latitude,
-            lng: hw.longitude,
+            lat,
+            lng,
             accuracy: 10,
             status: nextStatus === 'Present' ? 'Present' : 'Absent',
-            currentApp: hw.activeApp || 'Evron Watchtower',
-            isAppViolating: hw.unauthorizedAppsInstalled,
-            networkType: hw.internetType || 'wifi',
-            wifiSsid: hw.wifiSsid,
-            isSsidViolating: hw.unauthorizedAppsInstalled,
+            currentApp: hwState.activeApp || 'Evron',
+            isAppViolating: hwState.unauthorizedAppsInstalled,
+            networkType: realDevice.isOnline ? (hwState.internetType || 'wifi') : 'disconnected',
+            wifiSsid: hwState.wifiSsid,
+            isSsidViolating: false,
             isWearingUniform: true,
             statusDetail: remarks,
-            isDeveloperModeOn: hw.developerMode,
-            wifiBypassedOrAirplaneMode: hw.internetTracking === 'off'
+            isDeveloperModeOn: hwState.developerMode,
+            wifiBypassedOrAirplaneMode: !realDevice.isOnline
           });
         } catch (gpsErr) {
-          console.warn("Soft telemetry update offline:", gpsErr);
+          console.warn('Soft telemetry update offline:', gpsErr);
         }
 
         // Refresh
         await loadAllData();
-        triggerBanner('success', `Dynamic biometric scan complete at Coordinates: [${hw.latitude.toFixed(4)}, ${hw.longitude.toFixed(4)}]! Marked as ${nextStatus}`);
+        triggerBanner('success', `Attendance recorded at [${lat.toFixed(4)}, ${lng.toFixed(4)}]. Marked as ${nextStatus}`);
       } catch (err: any) {
         triggerBanner('err', 'Failed to register surveillance scan log.');
       } finally {
@@ -317,35 +336,57 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
     }, 2000);
   };
 
-  const handleTriggerSelfie = (type: 'punch_in' | 'destination' | 'punch_out') => {
-    const hw = getDeviceHardwareState();
-    if (hw.gpsStatus === 'off') {
-      triggerBanner('err', 'Biometric Camera Lock: GPS signal coordinates required to tie transit selfie.');
+  const handleTriggerSelfie = async (type: 'punch_in' | 'destination' | 'punch_out') => {
+    if (!realDevice.gpsEnabled) {
+      triggerBanner('err', 'Location required: Turn on GPS / Location services before capturing a selfie.');
       return;
     }
+    if (!realDevice.isOnline) {
+      triggerBanner('err', 'No internet connection. Connect before capturing a selfie.');
+      return;
+    }
+
     setActiveSelfieType(type);
     setIsSelfieCapturing(true);
-  };
 
-  const handleConfirmSelfie = () => {
-    setIsSelfieCapturing(false);
-    const hw = getDeviceHardwareState();
-    const mockPhotoData = `Simulated Biometric Selfie - Latitude: ${hw.latitude.toFixed(4)}, Longitude: ${hw.longitude.toFixed(4)} at ${new Date().toLocaleTimeString()}`;
-    
-    if (activeSelfieType === 'punch_in') {
-      setSelfiePunchIn(mockPhotoData);
-      localStorage.setItem('selfie_punch_in', mockPhotoData);
-      triggerBanner('success', '✅ PUNCH-IN selfie registered with localized lat/lng proof!');
-    } else if (activeSelfieType === 'destination') {
-      setSelfieDestination(mockPhotoData);
-      localStorage.setItem('selfie_destination', mockPhotoData);
-      triggerBanner('success', '✅ ROUTE DESTINATION selfie locked in securely!');
-    } else if (activeSelfieType === 'punch_out') {
-      setSelfiePunchOut(mockPhotoData);
-      localStorage.setItem('selfie_punch_out', mockPhotoData);
-      triggerBanner('success', '✅ PUNCH-OUT selfie captured and uploaded to activeCRM!');
+    try {
+      const photo = await Camera.getPhoto({
+        quality: 85,
+        allowEditing: false,
+        resultType: CameraResultType.Base64,
+        source: CameraSource.Camera,
+      });
+
+      const imgData = `data:image/jpeg;base64,${photo.base64String}`;
+      const meta = `Photo @ ${realDevice.latitude.toFixed(4)}, ${realDevice.longitude.toFixed(4)} · ${new Date().toLocaleTimeString()}`;
+
+      if (type === 'punch_in') {
+        setSelfiePunchIn(meta);
+        setSelfiePunchInImg(imgData);
+        localStorage.setItem('selfie_punch_in', meta);
+        localStorage.setItem('selfie_punch_in_img', imgData);
+        triggerBanner('success', '✅ Punch-in photo captured with GPS coordinates!');
+      } else if (type === 'destination') {
+        setSelfieDestination(meta);
+        setSelfieDestinationImg(imgData);
+        localStorage.setItem('selfie_destination', meta);
+        localStorage.setItem('selfie_destination_img', imgData);
+        triggerBanner('success', '✅ Destination selfie captured!');
+      } else if (type === 'punch_out') {
+        setSelfiePunchOut(meta);
+        setSelfiePunchOutImg(imgData);
+        localStorage.setItem('selfie_punch_out', meta);
+        localStorage.setItem('selfie_punch_out_img', imgData);
+        triggerBanner('success', '✅ Punch-out photo captured!');
+      }
+    } catch (err: any) {
+      if (err?.message !== 'User cancelled photos app') {
+        triggerBanner('err', 'Camera error: ' + (err?.message || 'Could not open camera.'));
+      }
+    } finally {
+      setIsSelfieCapturing(false);
+      setActiveSelfieType(null);
     }
-    setActiveSelfieType(null);
   };
 
   // Leave Submit Form
@@ -525,13 +566,30 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
                   </div>
                 )}
 
-                {/* GPS Status Gate */}
-                {hwState.gpsStatus === 'off' && (
-                  <div className="px-3 py-2 bg-amber-500/10 border border-amber-500/45 rounded-xl flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 animate-pulse">
-                    <MapPin className="w-4 h-4 text-amber-500" />
+                {/* Real GPS Status Alert */}
+                {!realDevice.gpsEnabled && !realDevice.checking && (
+                  <div className="px-3 py-2 bg-red-500/15 border border-red-500/50 rounded-xl flex items-center gap-2 text-xs text-red-600 dark:text-red-400 animate-pulse">
+                    <MapPin className="w-4 h-4 text-red-500" />
                     <div>
-                      <strong className="block font-bold mt-0.5 uppercase">Telemetry GPS Signal Lost</strong>
-                      <span className="text-[10px] opacity-90">Turn on simulated device GPS to allow biometrics.</span>
+                      <strong className="block font-bold mt-0.5 uppercase">
+                        {realDevice.permissionDenied ? 'Location Permission Denied' : 'GPS / Location Services OFF'}
+                      </strong>
+                      <span className="text-[10px] opacity-90">
+                        {realDevice.permissionDenied
+                          ? 'Go to Settings → App Permissions → Allow Location.'
+                          : 'Turn on Location in your device settings. Attendance is blocked.'}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Internet connectivity alert */}
+                {!realDevice.isOnline && (
+                  <div className="px-3 py-2 bg-orange-500/15 border border-orange-500/50 rounded-xl flex items-center gap-2 text-xs text-orange-600 dark:text-orange-400 animate-pulse">
+                    <AlertTriangle className="w-4 h-4 text-orange-500" />
+                    <div>
+                      <strong className="block font-bold mt-0.5 uppercase">No Internet Connection</strong>
+                      <span className="text-[10px] opacity-90">Connect to WiFi or mobile data. Admin has been notified.</span>
                     </div>
                   </div>
                 )}
@@ -684,25 +742,27 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
 
                   <button
                     onClick={handleClockInOut}
-                    disabled={isScanning || hwState.unauthorizedAppsInstalled || hwState.gpsStatus === 'off'}
+                    disabled={isScanning || !realDevice.gpsEnabled || !realDevice.isOnline}
                     className={`px-6 py-3 rounded-xl text-xs font-black font-mono tracking-wider flex items-center justify-center gap-2 uppercase transition-all shadow-xl leading-none cursor-pointer ${
-                      hwState.unauthorizedAppsInstalled || hwState.gpsStatus === 'off'
+                      !realDevice.gpsEnabled || !realDevice.isOnline
                         ? 'bg-zinc-900 border border-zinc-800 text-zinc-600 cursor-not-allowed'
-                        : isScanning 
-                          ? 'bg-zinc-800 text-zinc-400 animate-pulse' 
-                          : todayAttendance?.status === 'Present' 
-                            ? 'bg-emerald-500 hover:bg-emerald-600 text-white' 
+                        : isScanning
+                          ? 'bg-zinc-800 text-zinc-400 animate-pulse'
+                          : todayAttendance?.status === 'Present'
+                            ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
                             : 'bg-red-600 hover:bg-red-500 text-white'
                     }`}
                   >
                     <Camera className="w-4 h-4" />
-                    {isScanning 
-                      ? 'Aligning dimensions...' 
-                      : hwState.unauthorizedAppsInstalled 
-                        ? 'SPOOF LOCKED' 
-                        : todayAttendance?.status === 'Present' 
-                          ? 'BIO-CLOCK OUT' 
-                          : 'BIO-CLOCK IN'}
+                    {isScanning
+                      ? 'Recording...'
+                      : !realDevice.gpsEnabled
+                        ? 'GPS REQUIRED'
+                        : !realDevice.isOnline
+                          ? 'NO INTERNET'
+                          : todayAttendance?.status === 'Present'
+                            ? 'CLOCK OUT'
+                            : 'CLOCK IN'}
                   </button>
                 </div>
 
@@ -726,79 +786,79 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
                   
                   {/* Stage 1: PUNCH IN SELFIE */}
                   <div className="flex items-center justify-between gap-4 p-3.5 bg-black/40 border border-zinc-900 rounded-xl">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded-full bg-red-650/10 border border-red-500 text-[10px] font-mono font-bold flex items-center justify-center text-[#ef4444]">1</span>
-                        <h4 className="text-xs font-bold text-black dark:text-white uppercase leading-none">Punch-In Selfie</h4>
-                      </div>
-                      <span className="block text-[9.5px] text-zinc-500 font-mono leading-tight">
-                        {selfiePunchIn ? "✅ SIGNED & UPLOADED" : "⚠️ PENDING PUNCH IN"}
-                      </span>
-                      {selfiePunchIn && (
-                        <p className="text-[8px] text-emerald-400 leading-none truncate max-w-[180px] font-mono">
-                          {selfiePunchIn}
-                        </p>
+                    <div className="flex items-center gap-3">
+                      {selfiePunchInImg ? (
+                        <img src={selfiePunchInImg} alt="punch-in" className="w-12 h-12 rounded-lg object-cover border border-emerald-500/40 flex-shrink-0" />
+                      ) : (
+                        <span className="w-5 h-5 rounded-full bg-red-650/10 border border-red-500 text-[10px] font-mono font-bold flex items-center justify-center text-[#ef4444] flex-shrink-0">1</span>
                       )}
+                      <div className="space-y-0.5">
+                        <h4 className="text-xs font-bold text-black dark:text-white uppercase leading-none">Punch-In Selfie</h4>
+                        <span className="block text-[9.5px] text-zinc-500 font-mono leading-tight">
+                          {selfiePunchIn ? "✅ " + selfiePunchIn : "⚠️ PENDING"}
+                        </span>
+                      </div>
                     </div>
                     <button
                       onClick={() => handleTriggerSelfie('punch_in')}
-                      className={`px-3 py-1.5 rounded-lg text-[9px] font-mono font-black uppercase tracking-wider cursor-pointer ${
-                        selfiePunchIn ? 'bg-zinc-900 border border-zinc-805 text-zinc-400 hover:text-white' : 'bg-red-650 hover:bg-red-500 text-white'
+                      disabled={isSelfieCapturing && activeSelfieType === 'punch_in'}
+                      className={`px-3 py-1.5 rounded-lg text-[9px] font-mono font-black uppercase tracking-wider cursor-pointer flex-shrink-0 ${
+                        selfiePunchIn ? 'bg-zinc-900 border border-zinc-805 text-zinc-400 hover:text-white' : 'bg-[#ef4444] hover:bg-red-500 text-white'
                       }`}
                     >
-                      {selfiePunchIn ? 'RE-TAKE' : 'CAPTURE PHOTO'}
+                      {isSelfieCapturing && activeSelfieType === 'punch_in' ? '...' : selfiePunchIn ? 'RE-TAKE' : 'CAPTURE'}
                     </button>
                   </div>
 
-                  {/* Stage 2: TRANSIT TARGET ARRIVAL SELFIE */}
+                  {/* Stage 2: DESTINATION ARRIVAL SELFIE */}
                   <div className="flex items-center justify-between gap-4 p-3.5 bg-black/40 border border-zinc-900 rounded-xl">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded-full bg-red-650/10 border border-red-500 text-[10px] font-mono font-bold flex items-center justify-center text-[#ef4444]">2</span>
-                        <h4 className="text-xs font-bold text-black dark:text-white uppercase leading-none">Destination Arrival</h4>
-                      </div>
-                      <span className="block text-[9.5px] text-zinc-500 font-mono leading-tight">
-                        {selfieDestination ? "✅ GPS TARGET SIGNED" : "⚠️ PENDING DESTINATION ROUTE"}
-                      </span>
-                      {selfieDestination && (
-                        <p className="text-[8px] text-emerald-400 leading-none truncate max-w-[180px] font-mono">
-                          {selfieDestination}
-                        </p>
+                    <div className="flex items-center gap-3">
+                      {selfieDestinationImg ? (
+                        <img src={selfieDestinationImg} alt="destination" className="w-12 h-12 rounded-lg object-cover border border-emerald-500/40 flex-shrink-0" />
+                      ) : (
+                        <span className="w-5 h-5 rounded-full bg-red-650/10 border border-red-500 text-[10px] font-mono font-bold flex items-center justify-center text-[#ef4444] flex-shrink-0">2</span>
                       )}
+                      <div className="space-y-0.5">
+                        <h4 className="text-xs font-bold text-black dark:text-white uppercase leading-none">Destination Arrival</h4>
+                        <span className="block text-[9.5px] text-zinc-500 font-mono leading-tight">
+                          {selfieDestination ? "✅ " + selfieDestination : "⚠️ PENDING DESTINATION"}
+                        </span>
+                      </div>
                     </div>
                     <button
                       onClick={() => handleTriggerSelfie('destination')}
-                      className={`px-3 py-1.5 rounded-lg text-[9px] font-mono font-black uppercase tracking-wider cursor-pointer ${
-                        selfieDestination ? 'bg-zinc-900 border border-zinc-805 text-zinc-400 hover:text-white' : 'bg-red-650 hover:bg-red-500 text-white'
+                      disabled={isSelfieCapturing && activeSelfieType === 'destination'}
+                      className={`px-3 py-1.5 rounded-lg text-[9px] font-mono font-black uppercase tracking-wider cursor-pointer flex-shrink-0 ${
+                        selfieDestination ? 'bg-zinc-900 border border-zinc-805 text-zinc-400 hover:text-white' : 'bg-[#ef4444] hover:bg-red-500 text-white'
                       }`}
                     >
-                      {selfieDestination ? 'RE-TAKE' : 'CAPTURE PHOTO'}
+                      {isSelfieCapturing && activeSelfieType === 'destination' ? '...' : selfieDestination ? 'RE-TAKE' : 'CAPTURE'}
                     </button>
                   </div>
 
                   {/* Stage 3: PUNCH OUT SELFIE */}
                   <div className="flex items-center justify-between gap-4 p-3.5 bg-black/40 border border-zinc-900 rounded-xl">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded-full bg-red-650/10 border border-red-500 text-[10px] font-mono font-bold flex items-center justify-center text-[#ef4444]">3</span>
-                        <h4 className="text-xs font-bold text-black dark:text-white uppercase leading-none">Punch-Out Selfie</h4>
-                      </div>
-                      <span className="block text-[9.5px] text-zinc-500 font-mono leading-tight">
-                        {selfiePunchOut ? "✅ TERMINAL COMPLETED" : "⚠️ PENDING DUTY PUNCH OUT"}
-                      </span>
-                      {selfiePunchOut && (
-                        <p className="text-[8px] text-emerald-400 leading-none truncate max-w-[180px] font-mono">
-                          {selfiePunchOut}
-                        </p>
+                    <div className="flex items-center gap-3">
+                      {selfiePunchOutImg ? (
+                        <img src={selfiePunchOutImg} alt="punch-out" className="w-12 h-12 rounded-lg object-cover border border-emerald-500/40 flex-shrink-0" />
+                      ) : (
+                        <span className="w-5 h-5 rounded-full bg-red-650/10 border border-red-500 text-[10px] font-mono font-bold flex items-center justify-center text-[#ef4444] flex-shrink-0">3</span>
                       )}
+                      <div className="space-y-0.5">
+                        <h4 className="text-xs font-bold text-black dark:text-white uppercase leading-none">Punch-Out Selfie</h4>
+                        <span className="block text-[9.5px] text-zinc-500 font-mono leading-tight">
+                          {selfiePunchOut ? "✅ " + selfiePunchOut : "⚠️ PENDING PUNCH OUT"}
+                        </span>
+                      </div>
                     </div>
                     <button
                       onClick={() => handleTriggerSelfie('punch_out')}
-                      className={`px-3 py-1.5 rounded-lg text-[9px] font-mono font-black uppercase tracking-wider cursor-pointer ${
-                        selfiePunchOut ? 'bg-zinc-900 border border-zinc-805 text-zinc-400 hover:text-white' : 'bg-red-650 hover:bg-red-500 text-white'
+                      disabled={isSelfieCapturing && activeSelfieType === 'punch_out'}
+                      className={`px-3 py-1.5 rounded-lg text-[9px] font-mono font-black uppercase tracking-wider cursor-pointer flex-shrink-0 ${
+                        selfiePunchOut ? 'bg-zinc-900 border border-zinc-805 text-zinc-400 hover:text-white' : 'bg-[#ef4444] hover:bg-red-500 text-white'
                       }`}
                     >
-                      {selfiePunchOut ? 'RE-TAKE' : 'CAPTURE PHOTO'}
+                      {isSelfieCapturing && activeSelfieType === 'punch_out' ? '...' : selfiePunchOut ? 'RE-TAKE' : 'CAPTURE'}
                     </button>
                   </div>
 
@@ -815,71 +875,34 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
 
             </div>
 
-            {/* Selfie Biometric Capture Simulation Modal */}
-            {isSelfieCapturing && activeSelfieType && (
-              <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
-                <div className="max-w-md w-full bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden p-6 space-y-6 relative">
-                  
-                  {/* Decorative radar crosshair overlay */}
-                  <div className="absolute inset-x-0 top-32 flex justify-center pointer-events-none select-none">
-                    <div className="w-52 h-52 items-center justify-center rounded-full border border-dashed border-red-500/40 animate-spin flex">
-                      <div className="w-40 h-40 rounded-full border border-red-500/20" />
-                    </div>
-                  </div>
-
-                  <div className="text-center space-y-1">
-                    <span className="text-[9px] font-mono uppercase bg-red-950/20 px-2 py-0.5 rounded border border-red-500/20 text-[#ef4444]">
-                      BIOMETRIC STAMP PROTOCOL
-                    </span>
-                    <h3 className="text-lg font-black text-white uppercase tracking-wider">
-                      Align face in viewfinder
-                    </h3>
-                    <p className="text-[10px] text-zinc-400 font-mono uppercase">
-                      SECURE COORDINATES STAMP LOGGED: [{hwState.latitude.toFixed(4)}°, {hwState.longitude.toFixed(4)}°]
-                    </p>
-                  </div>
-
-                  {/* Simulated viewfinder screen */}
-                  <div className="w-full h-64 bg-[#0d0d0d] border border-zinc-850 rounded-xl relative overflow-hidden flex flex-col items-center justify-center">
-                    
-                    {/* Glowing scanning bar */}
-                    <div className="absolute inset-x-0 top-0 h-0.5 bg-red-500/80 shadow-lg shadow-red-500/50 animate-bounce z-10" />
-                    
-                    {/* Portrait head map silhouette */}
-                    <div className="w-32 h-44 border-2 border-dashed border-red-500/40 rounded-full opacity-60 flex items-center justify-center">
-                      <span className="text-red-500/60 font-mono text-[8px] tracking-widest text-center leading-normal">
-                        FITLIGHT SCAN<br/>[READY]
-                      </span>
-                    </div>
-
-                    <div className="absolute bottom-3 left-3 bg-zinc-950/95 border border-zinc-800 px-2.5 py-1 text-[8.5px] font-mono text-zinc-300 rounded uppercase">
-                      SURVEILLANCE: ON · CAMERA v2.1
-                    </div>
-
-                    <div className="absolute top-3 right-3 bg-red-950/40 px-2 py-0.5 text-[8px] font-mono text-[#ef4444] rounded uppercase font-bold animate-pulse">
-                      ● CAPTURING
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => {
-                        setIsSelfieCapturing(false);
-                        setActiveSelfieType(null);
-                      }}
-                      className="flex-1 py-3 border border-zinc-800 hover:border-zinc-700 bg-transparent hover:bg-zinc-900 text-zinc-400 hover:text-white rounded-xl text-xs font-bold font-mono tracking-wider transition uppercase cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleConfirmSelfie}
-                      className="flex-1 py-3 bg-red-650 hover:bg-red-505 text-white bg-[#ef4444] rounded-xl text-xs font-black font-mono tracking-wider transition-all uppercase shadow-lg shadow-red-950/20 cursor-pointer"
-                    >
-                      Confirm Snapshot
-                    </button>
-                  </div>
-
+            {/* Live GPS Map — employee's real location */}
+            {realDevice.gpsEnabled && (
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-mono font-black uppercase text-[#ef4444] tracking-widest flex items-center gap-1.5">
+                    <MapPin className="w-4 h-4" />
+                    Your Live Location
+                  </h3>
+                  <span className="text-[9px] font-mono text-zinc-500 uppercase">
+                    {realDevice.latitude.toFixed(5)}, {realDevice.longitude.toFixed(5)}
+                  </span>
                 </div>
+                <LiveMap
+                  centerLat={realDevice.latitude}
+                  centerLng={realDevice.longitude}
+                  zoom={16}
+                  geofenceRadius={300}
+                  selfMode
+                  employees={[{
+                    id: profile.code || 'emp',
+                    name: profile.name,
+                    lat: realDevice.latitude,
+                    lng: realDevice.longitude,
+                    status: todayAttendance?.status || 'Unknown',
+                    insideGeofence: true,
+                  }]}
+                  height="280px"
+                />
               </div>
             )}
 

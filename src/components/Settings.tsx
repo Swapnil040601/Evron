@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { BiometricAuth } from '@aparajita/capacitor-biometric-auth';
 import { 
   User, 
   Lock, 
@@ -65,7 +66,46 @@ export default function Settings({ onLogout }: SettingsProps) {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [mfaEnabled, setMfaEnabled] = useState(true);
-  const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(
+    !!localStorage.getItem('evron_biometric_token')
+  );
+  const [biometricMsg, setBiometricMsg] = useState<string | null>(null);
+
+  const handleBiometricToggle = async (enable: boolean) => {
+    setBiometricMsg(null);
+    try {
+      const check = await BiometricAuth.checkBiometry();
+      if (!check.isAvailable) {
+        setBiometricMsg('Biometric authentication is not available on this device.');
+        return;
+      }
+      if (enable) {
+        await BiometricAuth.authenticate({
+          reason: 'Enable biometric login',
+          cancelTitle: 'Cancel',
+          allowDeviceCredential: true,
+          iosFallbackTitle: 'Use Passcode',
+          androidTitle: 'Confirm Identity',
+          androidSubtitle: 'Verify to enable biometric login',
+        });
+        const token = localStorage.getItem('evron_jwt_token');
+        if (token) {
+          localStorage.setItem('evron_biometric_token', token);
+          setBiometricEnabled(true);
+          setBiometricMsg('Biometric login enabled successfully.');
+        } else {
+          setBiometricMsg('No active session token found. Please re-login first.');
+        }
+      } else {
+        localStorage.removeItem('evron_biometric_token');
+        setBiometricEnabled(false);
+        setBiometricMsg('Biometric login disabled.');
+      }
+    } catch (err: any) {
+      setBiometricMsg(err.message || 'Biometric verification failed.');
+    }
+    setTimeout(() => setBiometricMsg(null), 3000);
+  };
 
   // Active devices mock list
   const [devices] = useState([
@@ -324,14 +364,17 @@ export default function Settings({ onLogout }: SettingsProps) {
                 <div>
                   <span className="text-xs font-bold text-white block flex items-center gap-1">
                     <Fingerprint className="w-3.5 h-3.5 text-[#ef4444]" />
-                    Face & Biometric Login
+                    Biometric Login
                   </span>
-                  <span className="text-[9px] text-zinc-500 font-mono">Automated verification via system webcam sensors inside portal</span>
+                  <span className="text-[9px] text-zinc-500 font-mono">Use device fingerprint or face ID to sign in</span>
+                  {biometricMsg && (
+                    <span className="text-[9px] text-amber-400 font-mono block mt-0.5">{biometricMsg}</span>
+                  )}
                 </div>
                 <input
                   type="checkbox"
                   checked={biometricEnabled}
-                  onChange={(e) => setBiometricEnabled(e.target.checked)}
+                  onChange={(e) => handleBiometricToggle(e.target.checked)}
                   className="w-4 h-4 text-emerald-600 border-zinc-700 bg-zinc-900 rounded cursor-pointer accent-[#ef4444]"
                 />
               </div>

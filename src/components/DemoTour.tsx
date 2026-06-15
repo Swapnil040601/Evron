@@ -56,15 +56,15 @@ export default function DemoTour({ isOpen, onClose, onNavigateToTab }: DemoTourP
   const chapters: Chapter[] = [
     {
       id: 1,
-      title: 'Face Recognition & Clock-In',
+      title: 'Biometric Clock-In',
       icon: <Camera className="w-4 h-4" />,
       duration: 10,
-      description: 'See how staff members authenticate and log their shift records securely with facial recognition.',
+      description: 'See how staff members authenticate and log their shift records securely using device biometrics.',
       steps: [
         { time: 0, subtitle: 'Welcome to Evron WatchTower v2.0. Let\'s demonstrate staff clock-in functions.', animationState: 'idle' },
-        { time: 2, subtitle: 'When a staff member opens their user portal, they align their face to the camera frame...', animationState: 'scanning' },
-        { time: 5, subtitle: 'The biometric AI engine maps key nodal indicators on the face grid in real-time.', animationState: 'analyzing' },
-        { time: 7.5, subtitle: 'Biometrics verified successfully! The portal automatically logs the present status with a UTC timestamp.', animationState: 'success' }
+        { time: 2, subtitle: 'When a staff member opens their user portal, they use their device biometric to authenticate...', animationState: 'scanning' },
+        { time: 5, subtitle: 'The device verifies the fingerprint or face ID securely.', animationState: 'analyzing' },
+        { time: 7.5, subtitle: 'Identity verified successfully! The portal automatically logs the present status with a UTC timestamp.', animationState: 'success' }
       ]
     },
     {
