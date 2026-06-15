@@ -1,0 +1,49 @@
+trigger:
+  - master
+ 
+pool:
+  vmImage: 'ubuntu-latest'
+ 
+steps:
+  - checkout: self
+ 
+  - task: NodeTool@0
+    inputs:
+      versionSpec: '18.x'
+    displayName: "Use Node 18"
+ 
+  - script: |
+      npm ci
+      npm install -g serverless
+    displayName: "Install dependencies & Serverless"
+ 
+  - task: AWSCLI@1
+    inputs:
+      awsCredentials: 'aws-prod'
+      regionName: 'ap-south-1'
+      awsCommand: 'sts'
+      awsSubCommand: 'get-caller-identity'
+    displayName: "Verify AWS Credentials"
+ 
+    # SINGLE AWSShellScript TASK
+  - task: AWSShellScript@1
+    inputs:
+      awsCredentials: 'aws-prod'
+      regionName: 'ap-south-1'
+      scriptType: 'inline'
+      inlineScript: |
+        npm install -g serverless
+ 
+        serverless deploy --stage prod
+ 
+        # ASYNC Lambda invoke (NO WAIT)
+        aws lambda invoke \
+          --function-name fastify-api-prod-migrateTenants \
+          --invocation-type Event \
+          /tmp/response.json
+ 
+        echo "Deployment done, migration running in background"
+    displayName: "Deploy and Trigger Migration"
+    env:
+      SERVERLESS_ACCESS_KEY: $(SERVERLESS_ACCESS_KEY)
+

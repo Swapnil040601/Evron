@@ -1,0 +1,64 @@
+services:
+  postgres:
+    image: ankane/pgvector
+    container_name: evron_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ai_vision
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - evron_gcp
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    container_name: evron_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: ai_vision
+      JWT_SECRET: AiOxaqfVtL8gIudrgPI+T+8NLWHnixfW97Y3BNXMIl8=
+      AI_URL: http://localhost:5001
+      NODE_ENV: production
+    networks:
+      - evron_gcp
+
+  ai-app:
+    build:
+      context: .
+      args:
+        VITE_API_URL: ""
+    container_name: evron_ai_app
+    restart: unless-stopped
+    ports:
+      - "5193:5193"
+    environment:
+      PORT: "5193"
+      NODE_ENV: production
+      BACKEND_URL: http://backend:3000
+      MEDIAMTX_URL: http://localhost:8888
+      KEEP_PROXY_PREFIX: "false"
+    depends_on:
+      - backend
+    networks:
+      - evron_gcp
+
+networks:
+  evron_gcp:
+    driver: bridge
+
+volumes:
+  postgres_data:
