@@ -1,29 +1,11 @@
-import axios from "axios";
 import fs from "fs";
 import path from "path";
 import "dotenv/config";
-
-const FACE_POSES = ["straight", "left", "right", "up", "down", "smile"];
 
 function ensureDir(dirPath) {
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
   }
-}
-
-function saveBase64Image(dataUrl, filePath) {
-  if (!dataUrl || typeof dataUrl !== "string") {
-    throw new Error("Invalid image data");
-  }
-
-  const match = dataUrl.match(/^data:image\/(\w+);base64,(.+)$/);
-  if (!match) {
-    throw new Error("Invalid image data");
-  }
-
-  const buffer = Buffer.from(match[2], "base64");
-  fs.writeFileSync(filePath, buffer);
-  return true;
 }
 
 function buildWhere(filters = {}) {
@@ -374,175 +356,6 @@ export const UserService = {
 
     return await UserService.getOne(db, id);
   },
-  checkFace: async (payload = {}) => {
-    const response = await fetch(`${process.env.AI_URL}/check-face`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    return await response.json();
-  },
-
-  captureFrame: async (payload = {}) => {
-    try {
-      const response = await fetch(`${process.env.AI_URL}/capture-frame`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const result = await response.json();
-      // console.log(result);
-      return result;
-    } catch (error) {
-      console.log(error);
-    }
-  },
-  registerFace: async (db, userId, payload = {}) => {
-    let { pose, image, poses, images, sources } = payload;
-    const AI_URL = process.env.AI_URL;
-
-    const userRows = await db.query(
-      `SELECT id, name FROM users WHERE id = $1 LIMIT 1`,
-      [userId]
-    );
-
-    const user = userRows?.[0];
-    if (!user) return null;
-
-    // Backward compatibility: single pose/image
-    if (pose && image) {
-      poses = [pose];
-      sources = [{ type: "base64", value: image }];
-    }
-
-    // Backward compatibility: old multi image payload
-    if (Array.isArray(poses) && Array.isArray(images) && !sources) {
-      sources = images.map((img) => ({
-        type: "base64",
-        value: img,
-      }));
-    }
-
-    if (!Array.isArray(poses) || !Array.isArray(sources)) {
-      throw new Error("poses and sources are required");
-    }
-
-    if (
-      poses.length === 0 ||
-      sources.length === 0 ||
-      poses.length !== sources.length
-    ) {
-      throw new Error("poses and sources are required and must match");
-    }
-
-    const invalidPose = poses.find((p) => !FACE_POSES.includes(p));
-    if (invalidPose) {
-      throw new Error(`Invalid pose: ${invalidPose}`);
-    }
-
-    const allowedSourceTypes = ["base64", "rtsp", "http", "file"];
-    const invalidSource = sources.find(
-      (src) =>
-        !src ||
-        typeof src !== "object" ||
-        !src.type ||
-        !allowedSourceTypes.includes(src.type) ||
-        !src.value
-    );
-
-    if (invalidSource) {
-      throw new Error(
-        "Each source must have valid type and value. Allowed types: base64, rtsp, http, file"
-      );
-    }
-
-    let aiResponseData = null;
-
-    try {
-      const aiResponse = await axios.post(`${AI_URL}/register`, {
-        user_id: Number(userId),
-        poses,
-        sources,
-      });
-
-      aiResponseData = aiResponse?.data;
-    } catch (err) {
-      console.error("AI register failed:", err?.response?.data || err.message);
-
-      throw new Error(
-        err?.response?.data?.message || "Face registration failed"
-      );
-    }
-
-    const poseRows = await db.query(
-      `
-    SELECT
-      id,
-      user_id,
-      pose,
-      image_path,
-      created_at,
-      updated_at
-    FROM user_faces
-    WHERE user_id = $1
-    ORDER BY
-      CASE pose
-        WHEN 'straight' THEN 1
-        WHEN 'left' THEN 2
-        WHEN 'right' THEN 3
-        WHEN 'up' THEN 4
-        WHEN 'down' THEN 5
-        WHEN 'smile' THEN 6
-        ELSE 99
-      END
-    `,
-      [userId]
-    );
-
-    return {
-      success: aiResponseData?.success ?? true,
-      message: aiResponseData?.message || "Face registration completed",
-      user_id: Number(userId),
-      saved: aiResponseData?.saved ?? 0,
-      failed: aiResponseData?.failed ?? [],
-      poses: poseRows || [],
-      registered_pose_count: (poseRows || []).length,
-      face_status:
-        (poseRows || []).length >= 6
-          ? "complete"
-          : (poseRows || []).length > 0
-            ? "partial"
-            : "pending",
-    };
-  },
-
-  faceRegistrationStatus: async () => {
-    const AI_URL = process.env.AI_URL;
-    if (!AI_URL) {
-      return {
-        ready: false,
-        loading: false,
-        error: "AI service URL is not configured",
-      };
-    }
-
-    try {
-      const { data } = await axios.get(`${AI_URL}/face-registration/status`, {
-        timeout: 3000,
-      });
-      return data;
-    } catch (err) {
-      return {
-        ready: false,
-        loading: false,
-        error: err?.response?.data?.message || err.message || "AI service is not reachable",
-      };
-    }
-  },
-
   me: async (db, userId) => {
     try {
       const rows = await db.query(
@@ -600,62 +413,6 @@ export const UserService = {
     await db.query(`UPDATE users SET avatar = $1, updated_at = NOW() WHERE id = $2`, [relativePath, userId]);
     return { avatar: relativePath };
   },
-  registerFaceOld: async (db, userId, data) => {
-    var images = data.images;
-    var poses = data.poses;
-
-    try {
-
-      const aiResponse = await axios.post("http://ai-api:5001/register", {
-        user_id: userId,
-        images,
-        poses
-      });
-
-      console.log(aiResponse.data);
-
-      const user = await db.getRepository('User').findOneBy({ id: userId });
-      user.face_registered = true;
-      await db.getRepository('User').save(user);
-
-      // var res = await axios.get("http://ai-api:5001");
-      return { success: true };
-    } catch (err) {
-      console.error(err);
-      throw new Error("Face registration failed");
-    }
-  },
-
-  recognizeFace: async (db, data) => {
-    const image = data.image;
-    if (!image) throw new Error("No image provided");
-
-    try {
-      const aiResponse = await axios.post("http://ai-api:5001/match", { image });
-      return { aiResponse: aiResponse.data }
-      // For single query vector
-      //const embedding = aiResponse.data.embedding;
-      // console.log(embedding);
-
-      /*
-      // Wrap in array for FAISS
-      const { distances, labels } = index.search(embedding, 1);
-      console.log(distances, labels);
- 
-      const distanceThreshold = 0.6;
-      if (distances[0] < distanceThreshold) {
-        const userId = userMap[labels[0]];
-        const user = await db.getRepository('User').findOneBy({ id: userId });
-        return { found: true, user: { id: user.id, name: user.name, email: user.email } };
-      } else {
-        return { found: false };
-      }*/
-    } catch (err) {
-      console.error(err);
-      throw new Error("Face recognition failed");
-    }
-  },
-
   exportCsv: async (db, filters = {}) => {
     const where = [`u.deleted_at IS NULL`];
     const values = [];
@@ -758,60 +515,6 @@ export const UserService = {
     return { inserted, skipped, errors };
   },
 
-  deletePose: async (db, userId, pose) => {
-    if (!FACE_POSES.includes(pose)) throw new Error(`Invalid pose: ${pose}`);
-
-    const existing = await db.query(
-      `SELECT id FROM users WHERE id = $1 LIMIT 1`,
-      [userId]
-    );
-    if (!existing?.[0]) throw new Error("User not found");
-
-    const faceRows = await db.query(
-      `SELECT image_path FROM user_faces WHERE user_id = $1 AND pose = $2 LIMIT 1`,
-      [userId, pose]
-    );
-    const oldImagePath = faceRows?.[0]?.image_path;
-
-    await db.query(
-      `DELETE FROM user_faces WHERE user_id = $1 AND pose = $2`,
-      [userId, pose]
-    );
-
-    try {
-      removeRegisteredFaceImage(oldImagePath);
-    } catch (err) {
-      console.error("Delete pose image cleanup failed:", err.message);
-    }
-
-    const AI_URL = process.env.AI_URL;
-    if (AI_URL) {
-      try {
-        await axios.post(`${AI_URL}/delete-pose`, {
-          user_id: Number(userId),
-          pose,
-        });
-      } catch (err) {
-        console.error("AI delete-pose failed:", err?.response?.data || err.message);
-      }
-    }
-
-    const poseRows = await db.query(
-      `SELECT pose FROM user_faces WHERE user_id = $1 ORDER BY CASE pose WHEN 'straight' THEN 1 WHEN 'left' THEN 2 WHEN 'right' THEN 3 WHEN 'up' THEN 4 WHEN 'down' THEN 5 WHEN 'smile' THEN 6 ELSE 99 END`,
-      [userId]
-    );
-
-    const poses = (poseRows || []).map((r) => r.pose);
-    return {
-      success: true,
-      user_id: Number(userId),
-      pose,
-      poses,
-      registered_pose_count: poses.length,
-      face_status: poses.length >= 6 ? "complete" : poses.length > 0 ? "partial" : "pending",
-    };
-  },
-
   deleteOne: async (db, id) => {
     const existing = await db.query(
       `SELECT id FROM users WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
@@ -819,9 +522,6 @@ export const UserService = {
     );
     if (!existing?.[0]) throw new Error("User not found");
 
-    // Soft-delete: mark as deleted, preserve all history and face data.
-    // The AI reloads its face DB every 30s and filters deleted_at IS NULL,
-    // so the user stops being recognised automatically.
     await db.query(
       `UPDATE users SET deleted_at = NOW() WHERE id = $1`,
       [id]
@@ -842,7 +542,6 @@ export const UserService = {
       [id]
     );
 
-    // AI picks the user back up on its next 30s reload cycle automatically.
     return { success: true };
   },
 };

@@ -69,8 +69,7 @@ export default function Users({ employees, onAddEmployee }: UsersProps) {
       status: newEmpStatus,
       attendanceRate: 100,
       phone: newEmpPhone || '',
-      faceStatus: facePhoto ? 'pending' : 'none',
-      checkInTime: newEmpStatus === 'Present' ? '09:00 AM' : undefined
+checkInTime: newEmpStatus === 'Present' ? '09:00 AM' : undefined
     };
 
     await onAddEmployee(newEmp, facePhoto, newEmpPassword, newEmpUserRole);

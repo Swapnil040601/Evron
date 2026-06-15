@@ -178,7 +178,6 @@ export interface Employee {
   checkOutTime?: string;
   attendanceRate: number;
   phone: string;
-  faceStatus?: 'none' | 'pending' | 'approved' | 'rejected';
 }
 
 export interface ActivityLog {

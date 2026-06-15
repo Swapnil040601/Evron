@@ -239,7 +239,6 @@ export default function App() {
             status: user.id === 5 ? 'On Leave' : 'Present', // simulation compliance rate
             attendanceRate: 98 - (user.id * 2),
             phone: user.phone,
-            faceStatus: 'approved' as const
           });
         }
       });

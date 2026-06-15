@@ -43,39 +43,6 @@ export const UserController = {
 
     return item;
   },
-  captureFrame: async (req, reply) => {
-    const result = await UserService.captureFrame(
-      req.body || {}
-    );
-
-    if (!result) {
-      return reply.code(404).send({ message: "User not found" });
-    }
-
-    return result;
-  },
-
-  registerFace: async (req, reply) => {
-    const result = await UserService.registerFace(
-      req.db,
-      req.params.id,
-      req.body || {},
-      req.user || null
-    );
-
-    if (!result) {
-      return reply.code(404).send({ message: "User not found" });
-    }
-
-    const pose = req.body?.pose || "unknown";
-    AuditService.log(req.db, { actor_id: req.user?.id, action: "user.face_register", entity_type: "user", entity_id: req.params.id, entity_name: result?.name, changes: { pose }, ip: req.ip });
-    return result;
-  },
-
-  faceRegistrationStatus: async (req, reply) => {
-    return await UserService.faceRegistrationStatus();
-  },
-
   me: async (req, reply) => {
     try {
       const userId = req.user.id;
@@ -112,22 +79,6 @@ export const UserController = {
       return reply.code(400).send({ message: err.message });
     }
   },
-  registerFaceOld: async (req, reply) => {
-    try {
-      return await UserService.registerFace(req.db, req.params.id, req.body);
-    } catch (err) {
-      return reply.code(401).send({ message: err.message });
-    }
-  },
-
-  recognizeFace: async (req, reply) => {
-    try {
-      return await UserService.recognizeFace(req.db, req.body);
-    } catch (err) {
-      return reply.code(401).send({ message: err.message });
-    }
-  },
-
   exportCsv: async (req, reply) => {
     const csv = await UserService.exportCsv(req.db, req.query || {});
     reply.header("Content-Type", "text/csv");
@@ -156,16 +107,6 @@ export const UserController = {
     }
   },
 
-  deletePose: async (req, reply) => {
-    try {
-      const result = await UserService.deletePose(req.db, req.params.id, req.params.pose);
-      AuditService.log(req.db, { actor_id: req.user?.id, action: "user.face_delete", entity_type: "user", entity_id: req.params.id, changes: { pose: req.params.pose }, ip: req.ip });
-      return result;
-    } catch (err) {
-      return reply.code(400).send({ message: err.message });
-    }
-  },
-
   deleteOne: async (req, reply) => {
     try {
       const user = await UserService.getOne(req.db, req.params.id);
@@ -188,11 +129,4 @@ export const UserController = {
     }
   },
 
-  checkFace: async (req, reply) => {
-    try {
-      return await UserService.checkFace(req.body || {});
-    } catch (err) {
-      return reply.code(500).send({ message: err.message });
-    }
-  },
 };

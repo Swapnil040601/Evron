@@ -17,7 +17,6 @@ export const initialEmployees: Employee[] = [
     checkInTime: '08:45 AM',
     attendanceRate: 98,
     phone: '+1 (555) 019-2834',
-    faceStatus: 'approved'
   },
   {
     id: 'EMP002',
@@ -30,7 +29,6 @@ export const initialEmployees: Employee[] = [
     checkInTime: '09:32 AM',
     attendanceRate: 92,
     phone: '+1 (555) 019-8831',
-    faceStatus: 'approved'
   },
   {
     id: 'EMP003',
@@ -43,7 +41,6 @@ export const initialEmployees: Employee[] = [
     checkInTime: '08:50 AM',
     attendanceRate: 96,
     phone: '+1 (555) 019-4452',
-    faceStatus: 'approved'
   },
   {
     id: 'EMP004',
@@ -56,7 +53,6 @@ export const initialEmployees: Employee[] = [
     checkInTime: '07:55 AM',
     attendanceRate: 100,
     phone: '+1 (555) 019-7711',
-    faceStatus: 'approved'
   },
   {
     id: 'EMP005',
@@ -68,7 +64,6 @@ export const initialEmployees: Employee[] = [
     status: 'On Leave',
     attendanceRate: 94,
     phone: '+1 (555) 019-6123',
-    faceStatus: 'none'
   },
   {
     id: 'EMP006',
@@ -80,7 +75,6 @@ export const initialEmployees: Employee[] = [
     status: 'Absent',
     attendanceRate: 88,
     phone: '+1 (555) 019-9150',
-    faceStatus: 'approved'
   },
   {
     id: 'EMP007',
@@ -93,7 +87,6 @@ export const initialEmployees: Employee[] = [
     checkInTime: '08:58 AM',
     attendanceRate: 97,
     phone: '+1 (555) 019-3388',
-    faceStatus: 'approved'
   },
   {
     id: 'EMP008',
@@ -106,7 +99,6 @@ export const initialEmployees: Employee[] = [
     checkInTime: '09:18 AM',
     attendanceRate: 91,
     phone: '+1 (555) 019-2219',
-    faceStatus: 'approved'
   }
 ];
 
