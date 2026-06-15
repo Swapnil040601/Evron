@@ -65,27 +65,27 @@ export default function DaySummary({ employees }: DaySummaryProps) {
         </div>
 
         {/* Calendar Picker Block */}
-        <div className="flex items-center gap-2 bg-zinc-950 p-1.5 rounded-lg border border-zinc-800" id="date-picker-widget">
+        <div className="flex items-center gap-2 bg-zinc-950 theme-light:bg-white theme-light:border-zinc-300 p-1.5 rounded-lg border border-zinc-800" id="date-picker-widget">
           <button
             onClick={() => handleDayStep('prev')}
-            className="p-1 hover:bg-zinc-900 rounded text-zinc-400 hover:text-white transition"
+            className="p-1 hover:bg-zinc-900 theme-light:hover:bg-zinc-100 rounded text-zinc-400 hover:text-white theme-light:text-zinc-600 theme-light:hover:text-zinc-900 transition"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
-          
+
           <div className="flex items-center gap-2 px-2">
             <Calendar className="w-3.5 h-3.5 text-[#ef4444]" />
             <input
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="bg-transparent text-xs text-white border-none focus:outline-none font-mono font-bold cursor-pointer"
+              className="bg-transparent text-xs text-white theme-light:text-zinc-800 border-none focus:outline-none font-mono font-bold cursor-pointer"
             />
           </div>
 
           <button
             onClick={() => handleDayStep('next')}
-            className="p-1 hover:bg-zinc-900 rounded text-zinc-400 hover:text-white transition"
+            className="p-1 hover:bg-zinc-900 theme-light:hover:bg-zinc-100 rounded text-zinc-400 hover:text-white theme-light:text-zinc-600 theme-light:hover:text-zinc-900 transition"
           >
             <ChevronRight className="w-4 h-4" />
           </button>

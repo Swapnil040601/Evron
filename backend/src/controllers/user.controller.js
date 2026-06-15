@@ -102,6 +102,16 @@ export const UserController = {
       return reply.code(400).send({ message: err.message });
     }
   },
+
+  uploadUserAvatar: async (req, reply) => {
+    try {
+      const data = await req.file();
+      if (!data) return reply.code(400).send({ message: "No file uploaded" });
+      return await UserService.uploadAvatar(req.db, parseInt(req.params.id), data);
+    } catch (err) {
+      return reply.code(400).send({ message: err.message });
+    }
+  },
   registerFaceOld: async (req, reply) => {
     try {
       return await UserService.registerFace(req.db, req.params.id, req.body);

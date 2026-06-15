@@ -300,6 +300,22 @@ class ApiService {
     return this.currentUser!;
   }
 
+  public async uploadUserAvatar(userId: number, file: File): Promise<string> {
+    if (this.config.useLive) {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(`${this.config.baseUrl}/users/${userId}/avatar`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${this.token}` },
+        body: formData
+      });
+      if (!res.ok) throw new Error('Avatar upload error');
+      const data = await res.json();
+      return data.avatar;
+    }
+    return `avatars/${userId}.jpg`;
+  }
+
   public async uploadAvatar(file: File): Promise<string> {
     if (this.config.useLive) {
       const formData = new FormData();

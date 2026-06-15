@@ -20,6 +20,7 @@ export interface UserProfile {
   avatar: string; // e.g., "avatars/1.jpg"
   reporting_manager_id: number | null;
   reporting_manager_name: string | null;
+  password?: string;
 }
 
 // Attendance List Entry

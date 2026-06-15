@@ -292,11 +292,9 @@ export default function App() {
   // State Modifiers mapping API requests
 
   // 1. Add Employee Flow
-  const handleAddEmployee = async (newEmp: Employee) => {
+  const handleAddEmployee = async (newEmp: Employee, facePhoto: File | null, password: string, userRole: string) => {
     try {
-      // Map back to API format
-      const isSuper = newEmp.role.includes('SUPER');
-      await apiService.createUser({
+      const created = await apiService.createUser({
         name: newEmp.name,
         code: newEmp.id,
         email: newEmp.email,
@@ -304,16 +302,21 @@ export default function App() {
         gender: 'Male',
         type: 'Staff',
         department: newEmp.department,
-        role: isSuper ? 'super_admin' : 'admin',
+        role: userRole || 'user',
         status: 'Active',
-        avatar: 'avatars/42.jpg',
+        password,
         reporting_manager_id: null,
         reporting_manager_name: null
       });
 
-      // Insert log simulation
-      const mockAlertId = Math.floor(Math.random() * 900) + 100;
-      await apiService.markAllAlertsRead(); // simulation triggers update
+      if (facePhoto && created?.id) {
+        try {
+          await apiService.uploadUserAvatar(created.id, facePhoto);
+        } catch {
+          // avatar upload failed — not critical
+        }
+      }
+
       await loadAdminData();
 
     } catch (err) {

@@ -20,6 +20,7 @@ export default async function usersRoutes(fastify, opts) {
   fastify.post("/users/capture-frame", UserController.captureFrame);
   fastify.post("/users/check-face", UserController.checkFace);
   fastify.post("/users/:id/register-face", UserController.registerFace);
+  fastify.post("/users/:id/avatar", UserController.uploadUserAvatar);
   fastify.delete("/users/:id/poses/:pose", UserController.deletePose);
   fastify.delete("/users/:id", UserController.deleteOne);
   fastify.post("/users/:id/restore", UserController.restoreOne);
