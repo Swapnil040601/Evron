@@ -82,8 +82,9 @@ export function useRealDeviceStatus(employeeName?: string): RealDeviceStatus {
       }
 
       // Start continuous watch — updates on every device movement
+      // No timeout on watchPosition — let the OS deliver fixes when available
       watchIdRef.current = await Geolocation.watchPosition(
-        { enableHighAccuracy: true, timeout: 10000 },
+        { enableHighAccuracy: true },
         async (position, err) => {
           if (err || !position) {
             setGpsEnabled(false);
