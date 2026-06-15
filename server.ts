@@ -13,11 +13,16 @@ const PORT = parseInt(process.env.PORT || '3000');
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3000';
 const MEDIAMTX_URL = process.env.MEDIAMTX_URL || 'http://localhost:8888';
 
-// All other API calls → Fastify backend (strips /api prefix)
+// When routing through a Cloudflare tunnel → nginx, nginx expects the /api and /hls
+// prefixes intact so it can route them. Set KEEP_PROXY_PREFIX=true in that case.
+// When talking directly to the backend/mediamtx containers, keep the default (strip prefix).
+const keepPrefix = process.env.KEEP_PROXY_PREFIX === 'true';
+
+// All other API calls → Fastify backend
 app.use('/api', createProxyMiddleware({
   target: BACKEND_URL,
   changeOrigin: true,
-  pathRewrite: { '^/api': '' },
+  pathRewrite: keepPrefix ? undefined : { '^/api': '' },
   on: {
     error: (_err: any, _req: any, res: any) => {
       if (res && !res.headersSent) res.status(502).json({ error: 'Backend service unavailable' });
@@ -25,11 +30,11 @@ app.use('/api', createProxyMiddleware({
   },
 } as any));
 
-// HLS video streams → MediaMTX (strips /hls prefix, e.g. /hls/cam_1_live/index.m3u8 → /cam_1_live/index.m3u8)
+// HLS video streams → MediaMTX
 app.use('/hls', createProxyMiddleware({
   target: MEDIAMTX_URL,
   changeOrigin: true,
-  pathRewrite: { '^/hls': '' },
+  pathRewrite: keepPrefix ? undefined : { '^/hls': '' },
   selfHandleResponse: false,
 } as any));
 

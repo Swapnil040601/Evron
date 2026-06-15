@@ -31,7 +31,7 @@ export interface ConnectionConfig {
 
 // Initial fallback mock data, saved in localStorage so changes are sticky.
 const DEFAULT_CONFIG: ConnectionConfig = {
-  baseUrl: typeof window !== 'undefined' ? `${window.location.origin}/api` : 'http://34.93.61.112:5193/api',
+  baseUrl: (import.meta.env.VITE_API_URL as string) || `${typeof window !== 'undefined' ? window.location.origin : ''}/api`,
   useLive: true,
   recaptchaSiteKey: ''
 };
@@ -135,8 +135,8 @@ class ApiService {
       }
     }
     return {
-      name: "EVRON AI SUITE",
-      tag_line: "AI Attendance System",
+      name: "EVRON SUITE",
+      tag_line: "Attendance & Security System",
       logo_url: "logo/logo.png",
       recaptcha_site_key: this.config.recaptchaSiteKey
     };
@@ -1218,6 +1218,33 @@ class ApiService {
     ];
   }
 
+  public async addDirectCamera(fields: { name: string; rtspUrl: string; location: string }): Promise<any> {
+    if (this.config.useLive) {
+      const res = await fetch(`${this.config.baseUrl}/cameras/direct`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify(fields)
+      });
+      if (!res.ok) throw new Error('Failed to add direct camera.');
+      return await res.json();
+    }
+    const cam = {
+      id: 'direct-' + Date.now(),
+      name: fields.name,
+      rtsp_url: fields.rtspUrl,
+      location: fields.location,
+      status: 'LIVE',
+      alertFlag: false,
+      resolution: 'Live RTSP',
+      fps: 25,
+      feedColor: 'from-blue-900/40 text-blue-400',
+    };
+    const current = await this.getImportedCameras();
+    current.push(cam);
+    localStorage.setItem('evron_imported_cameras', JSON.stringify(current));
+    return cam;
+  }
+
   public async importCameras(cameras: any[]): Promise<boolean> {
     if (this.config.useLive) {
       const res = await fetch(`${this.config.baseUrl}/cameras/import`, {
@@ -1571,7 +1598,7 @@ class ApiService {
     }
     if (!this.settings || this.settings.length === 0) {
       this.settings = [
-        { key: 'app_name', label: 'App Identification Brand', type: 'text', value: 'EVRON AI SUITE', group: 'Company' },
+        { key: 'app_name', label: 'App Identification Brand', type: 'text', value: 'EVRON SUITE', group: 'Company' },
         { key: 'company_domain', label: 'Surveillance Hub domain', type: 'text', value: 'evron.corp.ai', group: 'Company' },
         { key: 'enable_fire_detection', label: 'Live Boiler Room thermal scan alarms', type: 'boolean', value: 'true', group: 'Features' },
         { key: 'enable_secured_area', label: 'Server Room high security lock toggle', type: 'boolean', value: 'true', group: 'Features' },

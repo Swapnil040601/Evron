@@ -1,13 +1,9 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.evron.aiapp',
-  appName: 'Evron AI',
+  appId: 'com.evron.app',
+  appName: 'Evron',
   webDir: 'dist',
-  server: {
-    url: 'http://34.93.61.112:5193',
-    cleartext: true,
-  },
   android: {
     allowMixedContent: true,
     webContentsDebuggingEnabled: true,
