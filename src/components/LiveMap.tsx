@@ -3,31 +3,23 @@ import { MapContainer, TileLayer, Marker, Circle, Popup, useMap } from 'react-le
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// Fix Leaflet default icon paths broken by bundlers
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-});
+// Inline SVG markers — no CDN dependency, always work offline in Capacitor
+function makeDotIcon(color: string) {
+  return L.divIcon({
+    html: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22">
+      <circle cx="11" cy="11" r="8" fill="${color}" stroke="white" stroke-width="2.5"/>
+      <circle cx="11" cy="11" r="3" fill="white" opacity="0.7"/>
+    </svg>`,
+    className: '',
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+    popupAnchor: [0, -14],
+  });
+}
 
-const redIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
-
-const greenIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
+const selfIcon = makeDotIcon('#22c55e');   // green — self location
+const insideIcon = makeDotIcon('#3b82f6'); // blue — inside geofence
+const outsideIcon = makeDotIcon('#ef4444'); // red — outside geofence
 
 export interface MapEmployee {
   id: string;
@@ -44,15 +36,26 @@ interface LiveMapProps {
   zoom?: number;
   geofenceRadius?: number;
   employees?: MapEmployee[];
-  selfMode?: boolean;         // employee self-view: single pin
+  selfMode?: boolean;
   height?: string;
 }
 
-function RecenterMap({ lat, lng }: { lat: number; lng: number }) {
+// Recenters map smoothly when coordinates change; also fixes Leaflet sizing on mount
+function MapController({ lat, lng }: { lat: number; lng: number }) {
   const map = useMap();
+
   useEffect(() => {
-    map.setView([lat, lng]);
-  }, [lat, lng]);
+    // Fix common Capacitor/WebView sizing bug: Leaflet initializes before
+    // the container is fully painted, leaving grey tiles. invalidateSize() redraws.
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 100);
+  }, [map]);
+
+  useEffect(() => {
+    map.flyTo([lat, lng], map.getZoom(), { animate: true, duration: 1 });
+  }, [lat, lng, map]);
+
   return null;
 }
 
@@ -63,34 +66,45 @@ export default function LiveMap({
   geofenceRadius = 300,
   employees = [],
   selfMode = false,
-  height = '360px',
+  height = '300px',
 }: LiveMapProps) {
   return (
-    <div style={{ height, width: '100%', borderRadius: '12px', overflow: 'hidden' }}>
+    <div style={{ height, width: '100%', borderRadius: '12px', overflow: 'hidden', position: 'relative' }}>
       <MapContainer
         center={[centerLat, centerLng]}
         zoom={zoom}
         style={{ height: '100%', width: '100%' }}
-        scrollWheelZoom
+        scrollWheelZoom={false}
+        dragging
+        touchZoom
+        doubleClickZoom
+        zoomControl
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          maxZoom={19}
+          keepBuffer={4}
         />
 
-        <RecenterMap lat={centerLat} lng={centerLng} />
+        <MapController lat={centerLat} lng={centerLng} />
 
-        {/* Geofence boundary circle */}
+        {/* Geofence boundary */}
         <Circle
           center={[centerLat, centerLng]}
           radius={geofenceRadius}
-          pathOptions={{ color: '#ef4444', fillColor: '#ef4444', fillOpacity: 0.06, weight: 2, dashArray: '6 4' }}
+          pathOptions={{
+            color: '#ef4444',
+            fillColor: '#ef4444',
+            fillOpacity: 0.07,
+            weight: 2,
+            dashArray: '6 4',
+          }}
         />
 
         {selfMode ? (
-          // Employee self-view: single blue marker
           employees.length > 0 && (
-            <Marker position={[employees[0].lat, employees[0].lng]} icon={greenIcon}>
+            <Marker position={[employees[0].lat, employees[0].lng]} icon={selfIcon}>
               <Popup>
                 <strong>{employees[0].name}</strong><br />
                 {employees[0].lat.toFixed(5)}, {employees[0].lng.toFixed(5)}<br />
@@ -99,18 +113,17 @@ export default function LiveMap({
             </Marker>
           )
         ) : (
-          // Admin view: all employee pins
           employees.map(emp => (
             <Marker
               key={emp.id}
               position={[emp.lat, emp.lng]}
-              icon={emp.insideGeofence ? greenIcon : redIcon}
+              icon={emp.insideGeofence ? insideIcon : outsideIcon}
             >
               <Popup>
                 <strong>{emp.name}</strong><br />
                 {emp.lat.toFixed(5)}, {emp.lng.toFixed(5)}<br />
-                Status: <b style={{ color: emp.insideGeofence ? 'green' : 'red' }}>
-                  {emp.insideGeofence ? 'Inside geofence' : '⚠ Outside geofence'}
+                Status: <b style={{ color: emp.insideGeofence ? '#16a34a' : '#dc2626' }}>
+                  {emp.insideGeofence ? 'Inside zone' : '⚠ Outside zone'}
                 </b>
               </Popup>
             </Marker>

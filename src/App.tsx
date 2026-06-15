@@ -51,6 +51,9 @@ import ProductivityComplianceHub from './components/ProductivityComplianceHub';
 export default function App() {
   // Navigation Router State for Admin/Super Admin
   const [activeTab, setActiveTab] = useState<'Dashboard' | 'Attendance' | 'Leave' | 'Live' | 'More' | 'Day Summary' | 'Users' | 'Productivity'>('Dashboard');
+  // Reset keys: increment to force a sub-section back to its main page
+  const [moreMenuKey, setMoreMenuKey] = useState(0);
+  const [productivityKey, setProductivityKey] = useState(0);
   
   // Active Alerts Popover Dropdown Toggle
   const [showAlertsDropdown, setShowAlertsDropdown] = useState(false);
@@ -716,6 +719,7 @@ export default function App() {
               className="w-full"
             >
               <MoreMenu
+                key={moreMenuKey}
                 employees={employees}
                 canteenVisits={[]}
                 onAddCanteenVisit={() => {}}
@@ -745,6 +749,7 @@ export default function App() {
               className="w-full"
             >
               <ProductivityComplianceHub
+                key={productivityKey}
                 employees={employees}
                 onTriggerAlert={async (detail, cameraName, status) => {
                   await apiService.addSimulatorAlert(`[${cameraName}] ${detail}`, status);
@@ -845,6 +850,7 @@ export default function App() {
             onClick={() => {
               triggerHaptic(HAPTIC_PATTERNS.light);
               setActiveTab('Productivity');
+              setProductivityKey(k => k + 1);
               handleClearPreSelectedTool();
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
@@ -870,6 +876,7 @@ export default function App() {
             onClick={() => {
               triggerHaptic(HAPTIC_PATTERNS.light);
               setActiveTab('More');
+              setMoreMenuKey(k => k + 1);
               handleClearPreSelectedTool();
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
