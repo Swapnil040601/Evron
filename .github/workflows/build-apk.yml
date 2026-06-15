@@ -23,7 +23,7 @@ jobs:
 
       - name: Build web assets with GCP URL
         env:
-          VITE_API_URL: "http://34.93.61.112:5193/api"
+          VITE_API_URL: "http://35.244.3.148:5193/api"
         run: npm run build
 
       - name: Sync to Android
