@@ -5,7 +5,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Employee } from '../types';
-import { Calendar, Search, Filter, ShieldCheck, Clock, UserMinus, UserCheck, Flame, Moon } from 'lucide-react';
+import { Calendar, Search, Filter, ShieldCheck, Clock, UserMinus, UserCheck, Flame, Moon, RefreshCw } from 'lucide-react';
+import { apiService } from '../services/api';
 
 interface AttendanceProps {
   employees: Employee[];
@@ -36,18 +37,56 @@ export default function Attendance({ employees, onNavigate, initialFilter }: Att
     return matchesFilter && matchesSearch;
   });
 
-  // Heatmap random data for 31 days representation (e.g., matching May 2026)
-  // Let's make it fixed so it remains beautiful and high fidelity
-  const daysInMonth = Array.from({ length: 31 }, (_, i) => {
-    const dayNum = i + 1;
-    // Generate simulated attendance percentages for each calendar day
-    let rate = 95;
-    if (dayNum === 3 || dayNum === 10 || dayNum === 17 || dayNum === 24) { rate = 0; } // Sundays
-    else if (dayNum === 12) { rate = 78; } // bad weather day
-    else if (dayNum === 25) { rate = 0; } // Memorial Day Holiday (scheduled)
-    else { rate = Math.floor(Math.random() * 8) + 92; } // high normal checkin
-    return { dayNum, rate };
-  });
+  // Real monthly attendance heatmap state
+  const now = new Date();
+  const [heatmapYM, setHeatmapYM] = useState({ year: now.getFullYear(), month: now.getMonth() + 1 });
+  const [heatmapData, setHeatmapData] = useState<{ dayNum: number; rate: number }[]>([]);
+  const [heatmapLoading, setHeatmapLoading] = useState(false);
+
+  const fetchHeatmap = async (year: number, month: number) => {
+    setHeatmapLoading(true);
+    try {
+      const records = await apiService.getMonthlyAttendance({ year, month, user_id: null });
+      const daysCount = new Date(year, month, 0).getDate();
+      const totalEmp = Math.max(employees.length, 1);
+
+      // group by day
+      const dayPresent: Record<number, number> = {};
+      records.forEach(r => {
+        const d = parseInt(typeof r.date === 'string' ? r.date.slice(8, 10) : '0', 10);
+        if (r.status === 'Present' || r.status === 'Late') {
+          dayPresent[d] = (dayPresent[d] || 0) + 1;
+        }
+      });
+
+      setHeatmapData(Array.from({ length: daysCount }, (_, i) => {
+        const dayNum = i + 1;
+        const date = new Date(year, month - 1, dayNum);
+        const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+        if (isWeekend) return { dayNum, rate: 0 };
+        const present = dayPresent[dayNum] || 0;
+        return { dayNum, rate: Math.round((present / totalEmp) * 100) };
+      }));
+    } catch {
+      setHeatmapData([]);
+    } finally {
+      setHeatmapLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'monthly') {
+      fetchHeatmap(heatmapYM.year, heatmapYM.month);
+    }
+  }, [activeTab, heatmapYM, employees.length]);
+
+  const heatmapMonthLabel = new Date(heatmapYM.year, heatmapYM.month - 1, 1)
+    .toLocaleString('en-US', { month: 'long', year: 'numeric' }).toUpperCase();
+  const firstDayOfWeek = (() => {
+    // Mon=0 … Sun=6
+    const d = new Date(heatmapYM.year, heatmapYM.month - 1, 1).getDay();
+    return d === 0 ? 6 : d - 1;
+  })();
 
   return (
     <div className="space-y-6" id="attendance-screen">
@@ -237,63 +276,80 @@ export default function Attendance({ employees, onNavigate, initialFilter }: Att
       {/* MONTHLY HEATMAP TAB */}
       {activeTab === 'monthly' && (
         <div className="space-y-6" id="monthly-heatmap-tab">
-          {/* Legend and explanation Widget */}
+          {/* Legend and month navigation */}
           <div className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1">
-              <span className="text-xs font-bold text-[#ef4444] font-mono tracking-wider">MONTH REVIEW // MAY 2026</span>
+              <span className="text-xs font-bold text-[#ef4444] font-mono tracking-wider">MONTH REVIEW // {heatmapMonthLabel}</span>
               <h3 className="text-sm font-semibold text-zinc-200">Attendance Heatmap</h3>
-              <p className="text-xs text-zinc-400">Indicates ratio of staff presence vs assigned lists daily. Weekend columns automatically bypass.</p>
+              <p className="text-xs text-zinc-400">Ratio of staff present vs total. Weekends shown as OFF.</p>
             </div>
-            
-            {/* Legend colors */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setHeatmapYM(prev => {
+                  const d = new Date(prev.year, prev.month - 2, 1);
+                  return { year: d.getFullYear(), month: d.getMonth() + 1 };
+                })}
+                className="px-2 py-1 bg-zinc-900 border border-zinc-800 rounded text-xs text-zinc-400 hover:text-white font-mono"
+              >←</button>
+              <span className="text-xs font-mono text-zinc-300 min-w-[120px] text-center">{heatmapMonthLabel}</span>
+              <button
+                onClick={() => setHeatmapYM(prev => {
+                  const d = new Date(prev.year, prev.month, 1);
+                  return { year: d.getFullYear(), month: d.getMonth() + 1 };
+                })}
+                className="px-2 py-1 bg-zinc-900 border border-zinc-800 rounded text-xs text-zinc-400 hover:text-white font-mono"
+              >→</button>
+              <button
+                onClick={() => fetchHeatmap(heatmapYM.year, heatmapYM.month)}
+                className="p-1.5 bg-zinc-900 border border-zinc-800 rounded hover:border-red-500 transition"
+                title="Refresh"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-zinc-400 ${heatmapLoading ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
             <div className="flex items-center gap-3 bg-zinc-950 p-2.5 rounded-lg border border-zinc-800 text-[10px] font-mono text-zinc-300">
-              <span className="text-zinc-500">Low (&lt;75%)</span>
+              <span className="text-zinc-500">Low</span>
               <span className="w-3 h-3 rounded bg-rose-950 border border-rose-600/50" />
               <span className="w-3 h-3 rounded bg-amber-950 border border-amber-600/50" />
               <span className="w-3 h-3 rounded bg-emerald-900 border border-emerald-600/50" />
               <span className="w-3 h-3 rounded bg-emerald-600 border border-emerald-400/50" />
-              <span>Perfect (100%)</span>
+              <span>High</span>
             </div>
           </div>
 
-          {/* Calender layout */}
+          {heatmapLoading ? (
+            <div className="py-20 text-center font-mono text-zinc-500 text-xs animate-pulse flex flex-col items-center gap-2">
+              <RefreshCw className="w-6 h-6 text-red-500 animate-spin" />
+              Loading attendance data...
+            </div>
+          ) : (
           <div className="grid grid-cols-7 gap-2.5 max-w-4xl mx-auto p-4 bg-zinc-950 border border-zinc-800 rounded-xl" id="heatmap-calendar-grid">
-            {/* Week Headers */}
             {['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].map(wd => (
-              <div key={wd} className="text-center text-[10px] text-zinc-500 font-bold font-mono py-1">
-                {wd}
-              </div>
+              <div key={wd} className="text-center text-[10px] text-zinc-500 font-bold font-mono py-1">{wd}</div>
             ))}
 
-            {/* Empty grid spacers for May 2026 (Starts on a Friday, so 4 empty days before) */}
-            {Array.from({ length: 4 }).map((_, i) => (
+            {/* Dynamic offset based on actual first day of month */}
+            {Array.from({ length: firstDayOfWeek }).map((_, i) => (
               <div key={`space-${i}`} className="aspect-square bg-zinc-900/10 border border-zinc-800/10 rounded-lg" />
             ))}
 
-            {/* Days representing actual surveillance state rates */}
-            {daysInMonth.map(({ dayNum, rate }) => {
-              // Decide background color based on rates
+            {heatmapData.map(({ dayNum, rate }) => {
+              const date = new Date(heatmapYM.year, heatmapYM.month - 1, dayNum);
+              const isWeekend = date.getDay() === 0 || date.getDay() === 6;
               let cellBg = 'bg-zinc-900/40 border-zinc-800 text-zinc-500';
-              let percentLabel = '0%';
+              let percentLabel = '–';
 
-              // If Sundays/Holidays rate === 0, label appropriately
-              if (rate === 0) {
-                if (dayNum === 25) {
-                  cellBg = 'bg-blue-950/20 border-blue-800/40 text-blue-400'; // Holiday
-                  percentLabel = 'HOL';
-                } else {
-                  cellBg = 'bg-zinc-950 border-zinc-900 text-zinc-600'; // Sunday Off
-                  percentLabel = 'OFF';
-                }
+              if (isWeekend) {
+                cellBg = 'bg-zinc-950 border-zinc-900 text-zinc-600';
+                percentLabel = 'OFF';
+              } else if (rate === 0) {
+                cellBg = 'bg-zinc-900/30 border-zinc-850 text-zinc-600';
+                percentLabel = '0%';
               } else {
                 percentLabel = `${rate}%`;
-                if (rate >= 95) {
-                  cellBg = 'bg-emerald-900/60 hover:bg-emerald-800 border-emerald-500/40 text-emerald-200';
-                } else if (rate >= 88) {
-                  cellBg = 'bg-amber-950/60 hover:bg-amber-900 border-amber-500/40 text-amber-200';
-                } else {
-                  cellBg = 'bg-rose-950/60 hover:bg-rose-900 border-rose-500/40 text-rose-200';
-                }
+                if (rate >= 80) cellBg = 'bg-emerald-900/60 hover:bg-emerald-800 border-emerald-500/40 text-emerald-200';
+                else if (rate >= 50) cellBg = 'bg-amber-950/60 hover:bg-amber-900 border-amber-500/40 text-amber-200';
+                else cellBg = 'bg-rose-950/60 hover:bg-rose-900 border-rose-500/40 text-rose-200';
               }
 
               return (
@@ -303,18 +359,17 @@ export default function Attendance({ employees, onNavigate, initialFilter }: Att
                 >
                   <span className="text-[11px] font-bold font-mono">{dayNum}</span>
                   <span className="text-[9px] font-mono tracking-tighter opacity-80 mt-auto">{percentLabel}</span>
-                  
-                  {/* Tooltip on hover */}
                   <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:flex flex-col items-center pointer-events-none z-10 w-28 bg-zinc-950 text-white rounded p-1.5 border border-zinc-700 text-[10px] font-mono shadow-2xl">
-                    <span className="font-semibold text-zinc-300">May {dayNum}, 2026</span>
-                    <span className={`mt-0.5 ${rate >= 95 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                      {rate === 0 ? 'No Work Logging' : `Avg Rate: ${rate}%`}
+                    <span className="font-semibold text-zinc-300">{dayNum} {heatmapMonthLabel.split(' ')[0]}</span>
+                    <span className={`mt-0.5 ${isWeekend ? 'text-zinc-500' : rate >= 80 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                      {isWeekend ? 'Weekend' : rate === 0 ? 'No Records' : `Present: ${rate}%`}
                     </span>
                   </div>
                 </div>
               );
             })}
           </div>
+          )}
         </div>
       )}
 

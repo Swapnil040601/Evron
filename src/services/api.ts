@@ -1016,6 +1016,37 @@ class ApiService {
     return { success: true };
   }
 
+  // INCIDENTS
+  public async getIncidents(category?: string): Promise<any[]> {
+    if (this.config.useLive) {
+      try {
+        const q = category ? `?search=${encodeURIComponent(category)}&limit=50` : '?limit=50';
+        const res = await fetch(`${this.config.baseUrl}/incidents${q}`, {
+          headers: this.getHeaders()
+        });
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.data || [];
+      } catch { return []; }
+    }
+    return [];
+  }
+
+  public async createIncident(fields: { title: string; severity: string; category: string; status?: string }): Promise<any> {
+    if (this.config.useLive) {
+      try {
+        const res = await fetch(`${this.config.baseUrl}/incidents`, {
+          method: 'POST',
+          headers: this.getHeaders(),
+          body: JSON.stringify({ ...fields, status: fields.status || 'Open' })
+        });
+        if (!res.ok) throw new Error('Failed');
+        return await res.json();
+      } catch { return null; }
+    }
+    return null;
+  }
+
   public async addSimulatorAlert(message: string, type: 'critical' | 'warning' | 'info'): Promise<boolean> {
     if (this.config.useLive) {
       try {

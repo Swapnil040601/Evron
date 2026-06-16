@@ -27,7 +27,7 @@ import { App as CapApp } from '@capacitor/app';
 import { showAlert } from './utils/dialog';
 
 // Import Types
-import { Employee, LeaveApplication, Holiday, UserProfile } from './types';
+import { Employee, LeaveApplication, Holiday, UserProfile, AttendanceRecord } from './types';
 import { apiService } from './services/api';
 import { triggerHaptic, HAPTIC_PATTERNS } from './services/haptics';
 
@@ -113,6 +113,7 @@ export default function App() {
   
   // cameras state removed — LiveView removed
 
+  const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [simAlerts, setSimAlerts] = useState<any[]>([]);
   const [unreadAlerts, setUnreadAlerts] = useState(0);
 
@@ -199,15 +200,32 @@ export default function App() {
 
   const loadAdminData = async () => {
     try {
-      // 1. Fetch Users mapped to old Employee structure
-      const uRes = await apiService.getUsersList({
-        page: 1,
-        limit: 100,
-        search: '',
-        department: '',
-        status: 'Active',
-        type: 'Staff'
-      });
+      const today = new Date().toISOString().slice(0, 10);
+
+      // 1. Fetch Users + today's real attendance in parallel
+      const [uRes, attRes] = await Promise.all([
+        apiService.getUsersList({
+          page: 1,
+          limit: 100,
+          search: '',
+          department: '',
+          status: 'Active',
+          type: 'Staff'
+        }),
+        apiService.getAttendanceList({
+          from: today,
+          to: today,
+          user_id: null,
+          status: null,
+          search: '',
+          page: 1,
+          limit: 500
+        })
+      ]);
+
+      // Build userId → attendance record map for O(1) lookup
+      const attendanceMap = new Map<number, AttendanceRecord>();
+      attRes.rows.forEach(r => attendanceMap.set(r.user_id, r));
 
       const seenEmpIds = new Set<string>();
       const mappedEmp: Employee[] = [];
@@ -215,6 +233,11 @@ export default function App() {
         const empId = user.code || `EMP-${user.id}`;
         if (!seenEmpIds.has(empId.toLowerCase().trim())) {
           seenEmpIds.add(empId.toLowerCase().trim());
+          const att = attendanceMap.get(user.id);
+          const status = att?.status || 'Absent';
+          const checkInTime = att?.check_in
+            ? new Date(`1970-01-01T${att.check_in}`).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+            : undefined;
           mappedEmp.push({
             id: empId,
             name: user.name,
@@ -222,8 +245,9 @@ export default function App() {
             role: (user.role || 'staff').replace('_', ' ').toUpperCase(),
             department: user.department,
             email: user.email,
-            status: user.id === 5 ? 'On Leave' : 'Present', // simulation compliance rate
-            attendanceRate: 98 - (user.id * 2),
+            status: status as Employee['status'],
+            checkInTime,
+            attendanceRate: att ? 100 : 0,
             phone: user.phone,
           });
         }
@@ -241,16 +265,19 @@ export default function App() {
       const alertList = await apiService.getAlerts();
       setSimAlerts(alertList);
 
-      // 4. Fetch dashboard stats
-      const dStats = await apiService.getDashboardData(new Date().toISOString().slice(0, 10));
+      // 4. Fetch dashboard stats + holidays in parallel
+      const [dStats, holidayList] = await Promise.all([
+        apiService.getDashboardData(today),
+        apiService.getHolidays(new Date().getFullYear())
+      ]);
       setTodayAttendanceCount({
         present: dStats.summary.present,
         absent: dStats.summary.absent,
         total: dStats.summary.totalEmployees
       });
+      setHolidays(holidayList);
 
-
-} catch (err) {
+    } catch (err) {
       console.warn('Sync logs error in watchtower loader.');
     }
   };
@@ -631,7 +658,7 @@ export default function App() {
               <MoreMenu
                 key={moreMenuKey}
                 employees={employees}
-                holidays={[]}
+                holidays={holidays}
                 securityEvents={[]}
                 onAddSecurityEvent={() => {}}
                 currentUser={currentUser}

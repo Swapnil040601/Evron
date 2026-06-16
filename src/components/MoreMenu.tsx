@@ -142,7 +142,7 @@ export default function MoreMenu({
           )}
 
           {activeTool === 'Reports' && (
-            <Reports onSyncData={onSyncData} />
+            <Reports onSyncData={onSyncData} employees={employees} />
           )}
 
           {activeTool === 'Productivity' && (

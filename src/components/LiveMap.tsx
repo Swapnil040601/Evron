@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Circle, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Circle, Popup, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -41,6 +41,16 @@ interface LiveMapProps {
   employees?: MapEmployee[];
   selfMode?: boolean;
   height?: string;
+  onMapClick?: (lat: number, lng: number) => void;
+}
+
+function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number) => void }) {
+  useMapEvents({
+    click(e) {
+      onMapClick(e.latlng.lat, e.latlng.lng);
+    }
+  });
+  return null;
 }
 
 function MapController({ lat, lng }: { lat: number; lng: number }) {
@@ -79,6 +89,7 @@ export default function LiveMap({
   employees = [],
   selfMode = false,
   height = '300px',
+  onMapClick,
 }: LiveMapProps) {
   // Geofence circle center: use explicit geofence coords if provided,
   // otherwise fall back to map centre (admin view default)
@@ -105,6 +116,7 @@ export default function LiveMap({
         />
 
         <MapController lat={centerLat} lng={centerLng} />
+        {onMapClick && <MapClickHandler onMapClick={onMapClick} />}
 
         {/* Geofence boundary — only shown in admin view (not selfMode) */}
         {!selfMode && (

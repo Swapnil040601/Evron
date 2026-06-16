@@ -3,50 +3,57 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
-import { SecurityEvent } from '../types';
-import { Flame, ShieldCheck, Cpu, Terminal, Plus, Radio, AlertTriangle, CheckCircle, Info } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Flame, ShieldCheck, Cpu, Terminal, Plus, RefreshCw } from 'lucide-react';
+import { apiService } from '../services/api';
 
 interface AdminStatusProps {
   mode: 'Fire' | 'Secured' | 'Monitor';
-  events: SecurityEvent[];
-  onAddEvent: (event: SecurityEvent) => void;
+  events?: any[];
+  onAddEvent?: (event: any) => void;
 }
 
-export default function AdminStatus({ mode, events, onAddEvent }: AdminStatusProps) {
+export default function AdminStatus({ mode }: AdminStatusProps) {
+  const [incidents, setIncidents] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [newEventMsg, setNewEventMsg] = useState('');
   const [newEventSeverity, setNewEventSeverity] = useState<'info' | 'warning' | 'critical'>('info');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Filter security events matching the current mode
-  const filteredEvents = events.filter(evt => evt.source === mode);
-
-  // Triggered test logging action
-  const handleLogEvent = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newEventMsg) { return; }
-
-    const formatTimestamp = () => {
-      const now = new Date();
-      let hour = now.getHours();
-      const min = String(now.getMinutes()).padStart(2, '0');
-      const ampm = hour >= 12 ? 'PM' : 'AM';
-      hour = hour % 12 || 12;
-      return `2026-05-24 ${String(hour).padStart(2, 'o')}:${min} ${ampm}`;
-    };
-
-    const newEvt: SecurityEvent = {
-      id: `SE00${events.length + 1}`,
-      source: mode,
-      type: newEventSeverity,
-      message: newEventMsg,
-      timestamp: formatTimestamp()
-    };
-
-    onAddEvent(newEvt);
-    setNewEventMsg('');
+  const fetchIncidents = async () => {
+    setIsLoading(true);
+    try {
+      const data = await apiService.getIncidents(mode);
+      setIncidents(data);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // Determine metadata headers based on selected Admin Mode
+  useEffect(() => {
+    fetchIncidents();
+  }, [mode]);
+
+  const handleLogEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newEventMsg) return;
+    setIsSubmitting(true);
+    try {
+      await apiService.createIncident({
+        title: newEventMsg.slice(0, 100),
+        severity: newEventSeverity,
+        category: mode,
+        status: 'Open'
+      });
+      setNewEventMsg('');
+      await fetchIncidents();
+    } catch {
+      // silently handle — backend may reject if schema differs
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   let mainIcon = <Cpu className="w-8 h-8 text-emerald-400" />;
   let screenTitle = 'Core System Health';
   let badgeColor = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
@@ -75,7 +82,6 @@ export default function AdminStatus({ mode, events, onAddEvent }: AdminStatusPro
 
   return (
     <div className="space-y-6" id="admin-status-view-panel">
-      {/* Upper header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-zinc-800/80 pb-5">
         <div className="flex items-center gap-3">
           <div className="bg-zinc-950 p-2.5 rounded-xl border border-zinc-850 shrink-0">
@@ -88,7 +94,6 @@ export default function AdminStatus({ mode, events, onAddEvent }: AdminStatusPro
         </div>
       </div>
 
-      {/* RENDER MODE SPECIFIC CORE METRICS OR DIAGNOSTICS CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4" id="admin-diagnostics-grid">
         <div className="bg-zinc-900/40 border border-zinc-800 p-5 rounded-xl text-white flex flex-col justify-between">
           <span className="text-[10px] text-zinc-500 font-mono tracking-wider block">SYSTEM THREAT STATUS</span>
@@ -100,7 +105,6 @@ export default function AdminStatus({ mode, events, onAddEvent }: AdminStatusPro
           <p className="text-[10px] text-zinc-400 mt-4 leading-relaxed font-sans">{technicalDetail}</p>
         </div>
 
-        {/* Diagnostic parameters depending on the active state */}
         {mode === 'Fire' && (
           <>
             <div className="bg-zinc-900/40 border border-zinc-800 p-5 rounded-xl text-white">
@@ -111,7 +115,6 @@ export default function AdminStatus({ mode, events, onAddEvent }: AdminStatusPro
               </div>
               <p className="text-[10px] text-zinc-400 mt-4">12 temperature nodes checked. Maximum differential reading strictly &lt;0.5°C threshold.</p>
             </div>
-
             <div className="bg-zinc-900/40 border border-zinc-800 p-5 rounded-xl text-white">
               <span className="text-[10px] text-zinc-500 font-mono tracking-wider block">AIR PARTICULATES / CO2</span>
               <div className="mt-4 flex items-baseline gap-2">
@@ -133,7 +136,6 @@ export default function AdminStatus({ mode, events, onAddEvent }: AdminStatusPro
               </div>
               <p className="text-[10px] text-zinc-400 mt-4">All emergency, main, and interior bypass access panels fully armed and relay locked.</p>
             </div>
-
             <div className="bg-zinc-900/40 border border-zinc-800 p-5 rounded-xl text-white">
               <span className="text-[10px] text-zinc-500 font-mono tracking-wider block">FACE PASS ACCREDITATION</span>
               <div className="mt-4 flex items-baseline gap-2">
@@ -155,7 +157,6 @@ export default function AdminStatus({ mode, events, onAddEvent }: AdminStatusPro
               </div>
               <p className="text-[10px] text-zinc-400 mt-4">87% storage cap. Auto cyclic delete of older motion logs triggered in 1.2 hrs.</p>
             </div>
-
             <div className="bg-zinc-900/40 border border-zinc-800 p-5 rounded-xl text-white">
               <span className="text-[10px] text-zinc-500 font-mono tracking-wider block">BANDWIDTH USAGE RATIO</span>
               <div className="mt-4 flex items-baseline gap-2">
@@ -168,42 +169,62 @@ export default function AdminStatus({ mode, events, onAddEvent }: AdminStatusPro
         )}
       </div>
 
-      {/* Main split: Historical Event Log AND add event simulator */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6" id="status-events-body-split">
-        
-        {/* Events log list (lg: 8) */}
+
+        {/* Events log */}
         <div className="lg:col-span-8 space-y-4">
-          <div className="flex items-center gap-2">
-            <Terminal className="w-4.5 h-4.5 text-[#ef4444]" />
-            <h2 className="text-xs font-bold font-mono text-[#ef4444] tracking-wider uppercase">Active Security telemetry log ({filteredEvents.length})</h2>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Terminal className="w-4.5 h-4.5 text-[#ef4444]" />
+              <h2 className="text-xs font-bold font-mono text-[#ef4444] tracking-wider uppercase">
+                Live Telemetry Log ({incidents.length})
+              </h2>
+            </div>
+            <button
+              onClick={fetchIncidents}
+              className="p-1.5 bg-zinc-900 border border-zinc-800 rounded hover:border-red-500 transition"
+              title="Refresh"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-zinc-400 ${isLoading ? 'animate-spin' : ''}`} />
+            </button>
           </div>
 
           <div className="bg-zinc-950 border border-zinc-850 rounded-xl max-h-[400px] overflow-y-auto p-4 space-y-2.5 scrollbar-thin">
-            {filteredEvents.length === 0 ? (
-              <p className="text-xs text-zinc-500 font-mono text-center py-8 select-none">No telemetry incidents recorded currently on this stream.</p>
+            {isLoading ? (
+              <p className="text-xs text-zinc-500 font-mono text-center py-8 animate-pulse">Loading incidents from database...</p>
+            ) : incidents.length === 0 ? (
+              <p className="text-xs text-zinc-500 font-mono text-center py-8 select-none">No telemetry incidents recorded for {mode} category.</p>
             ) : (
-              filteredEvents.slice().reverse().map(evt => {
+              incidents.map((inc: any) => {
+                const severity = inc.severity || 'info';
                 let textClass = 'text-zinc-300 border-zinc-850 bg-zinc-900/10';
                 let alertLabel = 'DIAG';
-
-                if (evt.type === 'critical') {
+                if (severity === 'critical') {
                   textClass = 'text-rose-300 border-rose-950/40 bg-rose-950/10';
                   alertLabel = 'CRITICAL ERROR';
-                } else if (evt.type === 'warning') {
+                } else if (severity === 'warning' || severity === 'high') {
                   textClass = 'text-amber-300 border-amber-950/40 bg-amber-950/10';
                   alertLabel = 'WARNING FLAG';
                 }
-
+                const ts = inc.created_at
+                  ? new Date(inc.created_at).toLocaleString()
+                  : (inc.timestamp || '');
                 return (
-                  <div key={evt.id} className={`p-3 rounded-lg border flex flex-col sm:flex-row sm:items-start justify-between gap-2 text-xs font-mono select-text leading-relaxed ${textClass}`}>
+                  <div key={inc.id} className={`p-3 rounded-lg border flex flex-col sm:flex-row sm:items-start justify-between gap-2 text-xs font-mono select-text leading-relaxed ${textClass}`}>
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="font-bold uppercase text-[9px] bg-zinc-950 px-1.5 py-0.5 rounded border border-zinc-800 shrink-0">
                           {alertLabel}
                         </span>
-                        <span className="text-[10px] text-zinc-500 shrink-0">{evt.timestamp}</span>
+                        <span className="text-[10px] text-zinc-500 shrink-0">{ts}</span>
+                        {inc.incident_number && (
+                          <span className="text-[9px] text-zinc-600 font-mono">{inc.incident_number}</span>
+                        )}
                       </div>
-                      <p className="text-xs font-sans mt-1 text-zinc-200">{evt.message}</p>
+                      <p className="text-xs font-sans mt-1 text-zinc-200">{inc.title || inc.message}</p>
+                      {inc.description && inc.description !== inc.title && (
+                        <p className="text-[10px] text-zinc-400 font-sans">{inc.description}</p>
+                      )}
                     </div>
                   </div>
                 );
@@ -212,11 +233,11 @@ export default function AdminStatus({ mode, events, onAddEvent }: AdminStatusPro
           </div>
         </div>
 
-        {/* Action Logger Simulator (lg: 4) */}
+        {/* Add incident form */}
         <div className="lg:col-span-4 space-y-4">
-          <h2 className="text-xs font-bold font-mono text-zinc-400 tracking-wider uppercase">Telemetry injection tool</h2>
+          <h2 className="text-xs font-bold font-mono text-zinc-400 tracking-wider uppercase">Log New Incident</h2>
           <div className="bg-zinc-900/40 border border-zinc-800 p-5 rounded-xl space-y-4">
-            <p className="text-xs text-zinc-500 font-sans">Simulate sensor warnings or critical fires to evaluate fail-safes and NVR records:</p>
+            <p className="text-xs text-zinc-500 font-sans">Record a new {mode.toLowerCase()} incident to the database:</p>
 
             <form onSubmit={handleLogEvent} className="space-y-4">
               <div className="space-y-1">
@@ -233,7 +254,7 @@ export default function AdminStatus({ mode, events, onAddEvent }: AdminStatusPro
               </div>
 
               <div className="space-y-1">
-                <label className="text-[9px] text-zinc-400 font-mono block uppercase">Interactive Message</label>
+                <label className="text-[9px] text-zinc-400 font-mono block uppercase">Incident Description</label>
                 <textarea
                   required
                   rows={3}
@@ -246,10 +267,11 @@ export default function AdminStatus({ mode, events, onAddEvent }: AdminStatusPro
 
               <button
                 type="submit"
-                className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold font-mono text-xs rounded transition flex items-center justify-center gap-1.5 shadow"
+                disabled={isSubmitting}
+                className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white font-semibold font-mono text-xs rounded transition flex items-center justify-center gap-1.5 shadow"
               >
                 <Plus className="w-4 h-4" />
-                SIMULATE STATE LOG
+                {isSubmitting ? 'SAVING...' : 'LOG INCIDENT TO DATABASE'}
               </button>
             </form>
           </div>

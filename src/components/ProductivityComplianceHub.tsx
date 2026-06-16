@@ -4,27 +4,29 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  ShieldAlert, 
-  MapPin, 
-  Map as MapIcon, 
-  Wifi, 
-  Smartphone, 
-  FileSpreadsheet, 
-  Download, 
-  AlertTriangle, 
-  CheckCircle, 
-  RefreshCw, 
-  Camera as CameraIcon, 
-  Activity, 
+import {
+  ShieldAlert,
+  MapPin,
+  Map as MapIcon,
+  Wifi,
+  Smartphone,
+  FileSpreadsheet,
+  Download,
+  AlertTriangle,
+  CheckCircle,
+  RefreshCw,
+  Camera as CameraIcon,
+  Activity,
   UserX,
   Sparkles,
   Search,
   Eye,
   Trash2,
   Lock,
-  Compass
+  Compass,
+  Navigation
 } from 'lucide-react';
+import { Geolocation } from '@capacitor/geolocation';
 import { Employee } from '../types';
 import { apiService } from '../services/api';
 import LiveMap, { MapEmployee } from './LiveMap';
@@ -104,14 +106,14 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
   );
 
   // Geofence administrator variables
-  const [geofenceCenter, setGeofenceCenter] = useState<{ lat: number; lng: number }>({ lat: 12.9716, lng: 77.5946 });
-  const [geofenceRadius, setGeofenceRadius] = useState<number>(300); // 300 meters by default
+  const [geofenceCenter, setGeofenceCenter] = useState<{ lat: number; lng: number }>({ lat: 0, lng: 0 });
+  const [geofenceRadius, setGeofenceRadius] = useState<number>(300);
   const [isDefiningGeofence, setIsDefiningGeofence] = useState<boolean>(false);
+  const [isLocating, setIsLocating] = useState<boolean>(false);
   const [notifiedBreaches, setNotifiedBreaches] = useState<Record<string, 'inside' | 'outside'>>({});
 
   const geofenceCenterRef = useRef(geofenceCenter);
   const geofenceRadiusRef = useRef(geofenceRadius);
-  const mapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     geofenceCenterRef.current = geofenceCenter;
@@ -121,38 +123,41 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
     geofenceRadiusRef.current = geofenceRadius;
   }, [geofenceRadius]);
 
+  const locateDevice = async () => {
+    setIsLocating(true);
+    try {
+      const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
+      const newCenter = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      setGeofenceCenter(newCenter);
+      runImmediateGeofenceCheckAll(newCenter, geofenceRadiusRef.current);
+    } catch (err) {
+      console.warn('Geolocation unavailable:', err);
+    } finally {
+      setIsLocating(false);
+    }
+  };
+
+  // Fetch real device GPS on mount
+  useEffect(() => {
+    locateDevice();
+  }, []);
+
   const getDistanceInMeters = (lat1: number, lng1: number, lat2: number, lng2: number) => {
     const latDiffMeters = (lat1 - lat2) * 111320;
     const lngDiffMeters = (lng1 - lng2) * 108000;
     return Math.sqrt(latDiffMeters * latDiffMeters + lngDiffMeters * lngDiffMeters);
   };
 
-  const handleMapClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isDefiningGeofence || !mapRef.current) return;
-    const rect = mapRef.current.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
-    
-    // Convert click coordinates to percentages (0 to 100)
-    const pctX = (clickX / rect.width) * 100;
-    const pctY = (clickY / rect.height) * 100;
-    
-    // Convert percentages back to lat/lng
-    const clickedLng = 77.5946 + (pctX - 50) / 10000;
-    const clickedLat = 12.9716 + (50 - pctY) / 10000;
-    
-    const newCenter = { lat: clickedLat, lng: clickedLng };
+  const handleMapClick = (lat: number, lng: number) => {
+    if (!isDefiningGeofence) return;
+    const newCenter = { lat, lng };
     setGeofenceCenter(newCenter);
-    setIsDefiningGeofence(false); // finish setting on single click
-    
-    // Log/trigger notice
+    setIsDefiningGeofence(false);
     triggerOuterSystemAlert(
-      `Administrating Geofence: Custom circular perimeter center updated to [${clickedLat.toFixed(5)}, ${clickedLng.toFixed(5)}].`,
+      `Administrating Geofence: Custom circular perimeter center updated to [${lat.toFixed(5)}, ${lng.toFixed(5)}].`,
       "PERIMETER CONTROL ROOM",
       "info"
     );
-
-    // Run custom checker
     runImmediateGeofenceCheckAll(newCenter, geofenceRadius);
   };
 
@@ -817,23 +822,35 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
 
           {/* Right panel: Active live telemetry details, GPS Visualizer, and Canvas Map */}
           <div className="lg:col-span-8 flex flex-col gap-5">
-            {/* 1. Vector Mapping Engine (Canvas representation of Bengaluru area) */}
+            {/* 1. Vector Mapping Engine */}
             <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden relative">
-              <div className="p-3 bg-zinc-900 border-b border-zinc-800/80 flex items-center justify-between font-mono text-[10px] text-zinc-400">
+              <div className="p-3 bg-zinc-900 border-b border-zinc-800/80 flex items-center justify-between font-mono text-[10px] text-zinc-400 gap-2">
                 <span className="flex items-center gap-1.5 font-bold uppercase text-red-500 animate-pulse">
                   <Activity className="w-3.5 h-3.5 text-red-500" />
-                  Live GPS Geofence Mapping Node // Active: {selectedEmployeeObj?.name || 'Michael Chen'}
+                  Live GPS Geofence Mapping Node // Active: {selectedEmployeeObj?.name || '—'}
                 </span>
-                <span>Active Geofence Radar: <strong className="text-white">{geofenceRadius}m radius</strong></span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span>Geofence Radar: <strong className="text-white">{geofenceRadius}m</strong></span>
+                  <button
+                    onClick={locateDevice}
+                    disabled={isLocating}
+                    title="Locate my device"
+                    className="flex items-center gap-1 px-2 py-1 bg-zinc-800 border border-zinc-700 hover:border-red-500 text-zinc-300 hover:text-white rounded text-[9px] font-mono uppercase font-bold transition disabled:opacity-50"
+                  >
+                    <Navigation className={`w-3 h-3 ${isLocating ? 'animate-spin' : ''}`} />
+                    {isLocating ? 'LOCATING...' : 'LOCATE'}
+                  </button>
+                </div>
               </div>
 
               {/* Real Leaflet map with employee GPS pins */}
               <LiveMap
-                centerLat={geofenceCenter.lat}
-                centerLng={geofenceCenter.lng}
-                zoom={15}
+                centerLat={geofenceCenter.lat || 0}
+                centerLng={geofenceCenter.lng || 0}
+                zoom={geofenceCenter.lat ? 15 : 2}
                 geofenceRadius={geofenceRadius}
                 height="360px"
+                onMapClick={isDefiningGeofence ? handleMapClick : undefined}
                 employees={employees.map(emp => {
                   const st = employeeStates[emp.id];
                   const lat = st?.activeLat ?? geofenceCenter.lat;

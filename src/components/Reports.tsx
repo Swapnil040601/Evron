@@ -4,31 +4,33 @@
  */
 
 import React, { useState } from 'react';
-import { 
-  FileSpreadsheet, 
-  Download, 
-  CheckCircle, 
-  Search, 
-  FileText, 
-  Link, 
-  RefreshCw, 
-  Upload, 
-  Database, 
-  Check, 
-  HelpCircle, 
-  FileX, 
+import {
+  FileSpreadsheet,
+  Download,
+  CheckCircle,
+  Search,
+  FileText,
+  Link,
+  RefreshCw,
+  Upload,
+  Database,
+  Check,
+  HelpCircle,
+  FileX,
   CloudLightning,
   UserPlus,
   AlertOctagon
 } from 'lucide-react';
 import { apiService } from '../services/api';
 import { showAlert } from '../utils/dialog';
+import { Employee } from '../types';
 
 interface ReportsProps {
   onSyncData?: () => void;
+  employees?: Employee[];
 }
 
-// Sample spreadsheet dataset based on the Evron Networks Excel sheet matching Swapnil's domain
+// Fixed list of users to import when SharePoint sync is triggered
 const SP_PREVIEW_RECORDS = [
   { code: 'EMP-EVN-201', name: 'Swapnil Rathore', email: 'swapnil.r@evronnetworks.com', role: 'Lead Program Manager', dept: 'Operations', phone: '+91 98765 43210' },
   { code: 'EMP-EVN-202', name: 'Priya Sharma', email: 'priya.s@evronnetworks.com', role: 'HR Specialist', dept: 'People Operations', phone: '+91 87654 32109' },
@@ -37,7 +39,7 @@ const SP_PREVIEW_RECORDS = [
   { code: 'EMP-EVN-205', name: 'David Vance', email: 'david.v@evronnetworks.com', role: 'Principal Security Analyst', dept: 'Cyber Ops', phone: '+1 (555) 019-1122' }
 ];
 
-export default function Reports({ onSyncData }: ReportsProps) {
+export default function Reports({ onSyncData, employees = [] }: ReportsProps) {
   // Navigation tabs within reports
   const [activeTab, setActiveTab] = useState<'export' | 'sharepoint' | 'sales-sheet'>('sales-sheet');
 
@@ -778,10 +780,10 @@ export default function Reports({ onSyncData }: ReportsProps) {
             <div className="bg-zinc-900/40 border border-zinc-805 p-5 rounded-xl space-y-3">
               <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
                 <span className="text-xs font-bold font-mono text-zinc-400 uppercase tracking-wider">Worksheet Preview: Staff Directory</span>
-                <span className="text-[9px] text-zinc-500 font-mono">Showing 5 rows · 6 columns</span>
+                <span className="text-[9px] text-zinc-500 font-mono">Showing {Math.min(employees.length, 10)} of {employees.length} rows · 6 columns</span>
               </div>
 
-              {/* Real Sheet layout representing their SharePoint actual data structure */}
+              {/* Real employee data from database */}
               <div className="overflow-x-auto border border-zinc-850 rounded bg-zinc-950">
                 <table className="w-full text-left border-collapse text-[10px] font-mono">
                   <thead>
@@ -795,28 +797,24 @@ export default function Reports({ onSyncData }: ReportsProps) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-900 text-zinc-300">
-                    {SP_PREVIEW_RECORDS.map((rec, idx) => (
-                      <tr 
-                        key={idx} 
-                        className={`hover:bg-zinc-900/40 transition ${
-                          rec.name.includes('Swapnil') ? 'bg-red-500/5' : ''
-                        }`}
-                      >
-                        <td className="p-2 text-center border-r border-zinc-850 bg-zinc-900/20 text-zinc-500">{idx + 1}</td>
-                        <td className="p-2 border-r border-zinc-850 font-semibold text-emerald-400">{rec.code}</td>
-                        <td className="p-2 border-r border-zinc-850 font-sans font-bold text-white">
-                          {rec.name}
-                          {rec.name.includes('Swapnil') && (
-                            <span className="ml-1 px-1 bg-red-650/15 border border-red-500/20 text-red-500 text-[8px] font-mono py-0.5 rounded inline-block">
-                              YOU (METADATA)
-                            </span>
-                          )}
+                    {employees.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="p-4 text-center text-zinc-600 font-sans">
+                          No employee records loaded yet.
                         </td>
-                        <td className="p-2 border-r border-zinc-850">{rec.email}</td>
-                        <td className="p-2 border-r border-zinc-850 font-sans">{rec.dept}</td>
-                        <td className="p-2 text-zinc-400">{rec.phone}</td>
                       </tr>
-                    ))}
+                    ) : (
+                      employees.slice(0, 10).map((emp, idx) => (
+                        <tr key={emp.id} className="hover:bg-zinc-900/40 transition">
+                          <td className="p-2 text-center border-r border-zinc-850 bg-zinc-900/20 text-zinc-500">{idx + 1}</td>
+                          <td className="p-2 border-r border-zinc-850 font-semibold text-emerald-400">{emp.id}</td>
+                          <td className="p-2 border-r border-zinc-850 font-sans font-bold text-white">{emp.name}</td>
+                          <td className="p-2 border-r border-zinc-850">{emp.email}</td>
+                          <td className="p-2 border-r border-zinc-850 font-sans">{emp.department || '—'}</td>
+                          <td className="p-2 text-zinc-400">{emp.phone || '—'}</td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
