@@ -3,248 +3,84 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-// User and Profile Roles
 export type UserRole = 'super_admin' | 'admin' | 'user';
 
 export interface UserProfile {
   id: number;
   name: string;
-  code: string; // e.g. "EMP001"
+  code: string;
   email: string;
   phone: string;
-  gender: string; // "Male" | "Female" | "Other"
-  type: string; // "Staff" etc.
+  gender: string;
+  type: string;
   department: string;
   role: UserRole;
   status: 'Active' | 'Inactive';
-  avatar: string; // e.g., "avatars/1.jpg"
+  avatar: string;
   reporting_manager_id: number | null;
   reporting_manager_name: string | null;
-  password?: string;
 }
 
-// Attendance List Entry
+export const FACE_POSES = ['straight', 'left', 'right', 'up', 'down', 'smile'] as const;
+export type FacePose = typeof FACE_POSES[number];
+
+export const POSE_LABELS: Record<FacePose, string> = {
+  straight: 'Look Straight',
+  left:     'Turn Left',
+  right:    'Turn Right',
+  up:       'Look Up',
+  down:     'Look Down',
+  smile:    'Smile',
+};
+
+export const POSE_ICONS: Record<FacePose, string> = {
+  straight: '👁',
+  left:     '←',
+  right:    '→',
+  up:       '↑',
+  down:     '↓',
+  smile:    '☺',
+};
+
+export interface Employee {
+  id: number;
+  name: string;
+  code: string;
+  email: string;
+  phone: string;
+  gender: string;
+  department: string;
+  type: string;
+  role: UserRole;
+  status: 'Active' | 'Inactive';
+  avatar: string;
+  registered_pose_count: number;
+  poses: FacePose[];
+  pose_images: Record<string, string>;
+  face_registered: boolean;
+  face_status: 'complete' | 'partial' | 'pending';
+}
+
 export interface AttendanceRecord {
   id: number;
   user_id: number;
   user_name: string;
-  date: string; // YYYY-MM-DD
-  status: 'Present' | 'Absent' | 'On Leave' | 'Holiday';
-  check_in: string | null; // HH:MM
-  check_out: string | null; // HH:MM
+  user_code: string;
+  department: string;
+  date: string;
+  status: 'Present' | 'Absent' | 'Late' | 'On Leave' | 'Holiday';
+  check_in: string | null;
+  check_out: string | null;
   productive_hours: number;
+  camera_hours: number;
+  phone_usage_pct: number;
+  remarks: string | null;
 }
 
-// Attendance Track Log
-export interface AttendanceTrack {
-  id: number;
-  timestamp: string;
-  camera_name: string;
-  type: 'In' | 'Out' | 'Through';
-  accuracy: number;
-}
-
-// Leave Balances
-export interface LeaveBalance {
-  leave_type_id: number;
-  leave_type_name: string;
-  allocated: number;
-  used: number;
-  remaining: number;
-  is_paid: boolean;
-}
-
-// Leave Application
-export interface LeaveApplication {
-  id: number;
-  leave_type_id: number;
-  leave_type_name: string;
-  from_date: string; // YYYY-MM-DD
-  to_date: string; // YYYY-MM-DD
-  no_of_days: number;
-  reason: string;
-  is_lop: boolean;
-  status: 'Pending' | 'Approved' | 'Rejected';
-  created_at: string;
-  user_id?: number;
-  user_name?: string;
-  department?: string;
-}
-
-export interface LeaveType {
-  id: number;
-  name: string;
-  description: string;
-  is_paid: boolean;
-}
-
-// Holidays Structure - Dual compatibility
-export interface Holiday {
-  id: number | string;
-  date: string; // YYYY-MM-DD
-  name: string;
-  day?: string;
-  type: 'National' | 'Regional' | 'Optional' | 'Restricted' | 'Gazetted';
-  description?: string; // Made optional for legacy support
-}
-
-// Shifts Structure - Dual compatibility
-export interface Shift {
-  id: number | string;
-  name: string;
-  type?: string;
-  timeRange?: string;
-  gracePeriod?: string;
-  grace_minutes?: number;
-  assignedStaffCount?: number;
-  start_time?: string;
-  end_time?: string;
-  break_start?: string;
-  break_end?: string;
-  entry_deadline?: string;
-  ot_cutoff_time?: string;
-  work_days?: number[];
-  status?: string;
-  staff_count?: number;
-  staff?: any[];
-}
-
-export interface UserWithShift {
-  user_id: number;
-  user_name: string;
-  code: string;
-  department: string;
-  assignment_id: number | null;
-  shift_id: number | null;
-  shift_name: string | null;
-  start_time: string | null;
-  end_time: string | null;
-  grace_minutes: number | null;
-  from_date: string | null;
-  to_date: string | null;
-}
-
-export interface ShiftAssignment {
-  id: number;
-  user_id: number;
-  shift_id: number;
-  from_date: string;
-  to_date: string | null;
-}
-
-// Canteen Structure
-export interface CanteenDailyItem {
-  mealType: string;
-  servingsCount: number;
-  billingAmount: number;
-}
-
-export interface CanteenMonthlyItem {
-  user_name: string;
-  employee_code: string;
-  total_meals: number;
-  amount: number;
-}
-
-// CanteenVisit - Dual compatibility properties
-export interface CanteenVisit {
-  id: number | string;
-  user_id?: number;
-  user_name?: string;
-  employeeName?: string;
-  department?: string;
-  item?: string;
-  date?: string; // Optional for legacy support
-  time: string;
-  mealType?: 'Breakfast' | 'Lunch' | 'Snacks' | 'Dinner'; // Compatibility Alias
-  meal_type?: 'Breakfast' | 'Lunch' | 'Snacks' | 'Dinner'; // Optional for legacy support
-  cost?: number; // Optional for legacy support
-}
-
-// Alerts Structure
-export interface Alert {
-  id: number;
-  message: string;
-  timestamp: string;
-  read: boolean;
-  type: 'critical' | 'warning' | 'info';
-}
-
-// Settings Structures
-export interface AppSetting {
-  key: string;
-  label: string;
-  type: 'text' | 'boolean' | 'number' | 'select';
-  value: string;
-  group: 'Company' | 'Features' | 'Email' | 'AI Config';
-}
-
-export interface FeatureFlags {
-  enable_fire_detection: boolean;
-  enable_secured_area: boolean;
-  enable_canteen: boolean;
-}
-
-// LEGACY ALIASES FOR GRAPH_VIS AND STATE INTERFACE STABILITY across Dashboard, Users, LiveView, Attendance views
-export type EmployeeStatus = 'Present' | 'Absent' | 'Late' | 'On Leave';
-
-export interface Employee {
-  id: string;
-  name: string;
-  avatar: string;
-  role: string;
-  department: string;
-  email: string;
-  status: EmployeeStatus;
-  checkInTime?: string;
-  checkOutTime?: string;
-  attendanceRate: number;
-  phone: string;
-}
-
-export interface ActivityLog {
-  id: string;
-  type: 'check_in' | 'check_out' | 'break' | 'alert' | 'system';
-  employeeId?: string;
-  employeeName?: string;
-  role?: string;
-  department?: string;
-  detail?: string;
-  time: string;
-  cameraName?: string;
-  duration?: string;
-  status?: 'critical' | 'warning' | 'info';
-}
-
-export interface LeaveRequest {
-  id: string;
-  employeeName: string;
-  department: string;
-  role: string;
-  leaveType: 'Sick' | 'Casual' | 'Annual' | 'LOP';
-  startDate: string;
-  endDate: string;
-  reason: string;
-  status: 'Pending' | 'Approved' | 'Rejected';
-}
-
-export interface Camera {
-  id: string;
-  name: string;
-  location: string;
-  status: 'LIVE' | 'REC' | 'OFFLINE';
-  alertFlag: boolean;
-  alertMsg?: string;
-  resolution?: string;
-  fps?: number;
-  noiseLevel?: string;
-  feedColor: string;
-}
-
-export interface SecurityEvent {
-  id: string;
-  source: 'Fire' | 'Secured' | 'Monitor';
-  type: 'info' | 'warning' | 'critical';
-  message: string;
-  timestamp: string;
+export interface AttendanceSummary {
+  total: number;
+  present: number;
+  absent: number;
+  late: number;
+  on_leave: number;
 }
