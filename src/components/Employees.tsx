@@ -77,8 +77,7 @@ export default function Employees() {
       const emp = await apiService.createEmployee(form);
       setNewlyCreated(emp as Employee);
       setForm({ name: '', code: '', email: '', phone: '', gender: 'Male', department: 'Engineering' });
-      // Go straight to face capture for the new employee
-      startFaceCapture(emp as Employee);
+      startFaceCapture(emp as Employee, true);
     } catch (e: any) {
       setFormError(e.message);
     } finally {
@@ -86,11 +85,12 @@ export default function Employees() {
     }
   };
 
-  const startFaceCapture = (emp: Employee) => {
+  const startFaceCapture = (emp: Employee, fromNew = false) => {
     setCaptureTarget(emp);
     setCapturedImages({});
     setActivePoseIdx(0);
     setSubmitResult(null);
+    if (!fromNew) setNewlyCreated(null);
     setScreen('face-capture');
   };
 

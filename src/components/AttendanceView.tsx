@@ -33,8 +33,10 @@ function fmtTime(t: string | null) {
 }
 function fmtHours(h: number) {
   if (!h) return '—';
-  const hrs = Math.floor(h / 3600);
-  const mins = Math.floor((h % 3600) / 60);
+  // backend returns seconds when > 100, hours when ≤ 100
+  const totalSecs = h > 100 ? h : h * 3600;
+  const hrs = Math.floor(totalSecs / 3600);
+  const mins = Math.floor((totalSecs % 3600) / 60);
   return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
 }
 
@@ -166,7 +168,7 @@ export default function AttendanceView() {
         ) : (
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
             <div className="grid grid-cols-5 bg-zinc-950/60 border-b border-zinc-800 text-[10px] font-mono text-zinc-500 uppercase">
-              {['Employee', 'Present', 'Absent', 'Leave', 'Offs'].map(h => (
+              {['Employee', 'Present', 'Absent', 'Holidays', 'W/Off'].map(h => (
                 <div key={h} className="px-3 py-2 text-center">{h}</div>
               ))}
             </div>
