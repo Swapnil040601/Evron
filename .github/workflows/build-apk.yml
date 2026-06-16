@@ -2,7 +2,9 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ build-apk ]
+    branches:
+      - build-apk
+      - new-client-face-attendance
   workflow_dispatch:
 
 jobs:
@@ -12,6 +14,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set artifact name
+        id: artifact
+        run: |
+          if [ "${{ github.ref_name }}" = "new-client-face-attendance" ]; then
+            echo "name=face-attendance-app" >> $GITHUB_OUTPUT
+          else
+            echo "name=evron-ai-app" >> $GITHUB_OUTPUT
+          fi
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v4
@@ -47,6 +58,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: evron-ai-app
+          name: ${{ steps.artifact.outputs.name }}
           path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 7
