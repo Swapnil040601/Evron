@@ -7,6 +7,30 @@ import { UserProfile, Employee, AttendanceRecord, FacePose } from '../types';
 
 const STORAGE_KEY = 'face_att_config';
 
+// ── Hardcoded local accounts (no backend required) ────────────────────────
+const LOCAL_ACCOUNTS: Record<string, { password: string; user: UserProfile }> = {
+  'admin@evron.com': {
+    password: 'Admin@123',
+    user: {
+      id: 1, name: 'Admin', code: 'ADM001',
+      email: 'admin@evron.com', phone: '', gender: 'Male',
+      type: 'Staff', department: 'Administration',
+      role: 'super_admin', status: 'Active', avatar: '',
+      reporting_manager_id: null, reporting_manager_name: null,
+    },
+  },
+  'employee@evron.com': {
+    password: 'Admin@123',
+    user: {
+      id: 2, name: 'Employee', code: 'EMP001',
+      email: 'employee@evron.com', phone: '', gender: 'Male',
+      type: 'Staff', department: 'General',
+      role: 'user', status: 'Active', avatar: '',
+      reporting_manager_id: 1, reporting_manager_name: 'Admin',
+    },
+  },
+};
+
 interface Config {
   baseUrl: string;
   token: string | null;
@@ -43,20 +67,35 @@ class ApiService {
   }
 
   private async req<T>(method: string, path: string, body?: unknown): Promise<T> {
-    const res = await fetch(`${this.cfg.baseUrl}${path}`, {
-      method,
-      headers: this.headers(),
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    });
+    let res: Response;
+    try {
+      res = await fetch(`${this.cfg.baseUrl}${path}`, {
+        method,
+        headers: this.headers(),
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+      });
+    } catch {
+      throw new Error('Cannot reach server. Configure the server URL in settings.');
+    }
     if (!res.ok) {
       const err = await res.json().catch(() => ({ message: res.statusText }));
       throw new Error(err.message || res.statusText);
     }
-    return res.json();
+    try {
+      return await res.json();
+    } catch {
+      throw new Error('Invalid response from server. Check the server URL in settings.');
+    }
   }
 
   // ── Auth ──────────────────────────────────────────────────────────────────
   async login(email: string, password: string): Promise<UserProfile> {
+    const local = LOCAL_ACCOUNTS[email.toLowerCase().trim()];
+    if (local && local.password === password) {
+      this.cfg.token = `local:${email.toLowerCase().trim()}`;
+      saveConfig(this.cfg);
+      return local.user;
+    }
     const data: any = await this.req('POST', '/login', { email, password });
     this.cfg.token = data.token;
     saveConfig(this.cfg);
@@ -69,6 +108,12 @@ class ApiService {
   }
 
   async me(): Promise<UserProfile> {
+    if (this.cfg.token?.startsWith('local:')) {
+      const email = this.cfg.token.slice(6);
+      const local = LOCAL_ACCOUNTS[email];
+      if (local) return local.user;
+      throw new Error('Session expired');
+    }
     return this.req('GET', '/me');
   }
 
