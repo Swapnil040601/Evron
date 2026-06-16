@@ -1,7 +1,7 @@
 import { UserProfile, Employee, AttendanceRecord, FacePose } from '../types';
 
 const STORAGE_KEY = 'face_att_config';
-const DEFAULT_URL  = 'http://35.244.3.148:5193/api';
+const DEFAULT_URL  = 'https://172.16.24.50:5184/api';
 
 interface Config { baseUrl: string; token: string | null; }
 
