@@ -606,6 +606,70 @@ class ApiService {
     return { success: true };
   }
 
+  public async getMyTodayAttendance(): Promise<any | null> {
+    if (this.config.useLive) {
+      const res = await fetch(`${this.config.baseUrl}/attendance/my/today`, {
+        headers: this.getHeaders()
+      });
+      if (!res.ok) return null;
+      return await res.json();
+    }
+    return null;
+  }
+
+  public async getMyAttendanceHistory(from: string, to: string): Promise<AttendanceRecord[]> {
+    if (this.config.useLive) {
+      const res = await fetch(`${this.config.baseUrl}/attendance/my/history?from=${from}&to=${to}`, {
+        headers: this.getHeaders()
+      });
+      if (!res.ok) return [];
+      const rows: any[] = await res.json();
+      return rows.map(r => ({
+        id: r.id,
+        user_id: r.user_id,
+        user_name: '',
+        date: typeof r.date === 'string' ? r.date.slice(0, 10) : r.date,
+        status: r.status || 'Absent',
+        check_in: r.mobile_punch_in
+          ? new Date(r.mobile_punch_in).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+          : null,
+        check_out: r.mobile_punch_out
+          ? new Date(r.mobile_punch_out).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+          : null,
+        productive_hours: 0,
+      }));
+    }
+    return this.attendance;
+  }
+
+  public async punchIn(data: { lat?: number | null; lng?: number | null; wifi_ssid?: string | null }): Promise<any> {
+    if (this.config.useLive) {
+      const res = await fetch(`${this.config.baseUrl}/attendance/punch-in`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify(data)
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((json as any)?.message || 'Punch in failed');
+      return json;
+    }
+    return { mobile_punch_in: new Date().toISOString(), status: 'Present', punch_in_lat: data.lat, punch_in_lng: data.lng };
+  }
+
+  public async punchOut(data: { lat?: number | null; lng?: number | null }): Promise<any> {
+    if (this.config.useLive) {
+      const res = await fetch(`${this.config.baseUrl}/attendance/punch-out`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify(data)
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((json as any)?.message || 'Punch out failed');
+      return json;
+    }
+    return { mobile_punch_out: new Date().toISOString() };
+  }
+
   public async getTracksForAttendance(id: number): Promise<AttendanceTrack[]> {
     if (this.config.useLive) {
       const res = await fetch(`${this.config.baseUrl}/attendance/${id}/tracks`, {
@@ -690,7 +754,7 @@ class ApiService {
     return this.shifts;
   }
 
-  public async createShift(fields: { name: string; start_time: string; end_time: string }): Promise<Shift> {
+  public async createShift(fields: { name: string; start_time: string; end_time: string; grace_minutes?: number }): Promise<Shift> {
     if (this.config.useLive) {
       const res = await fetch(`${this.config.baseUrl}/shifts`, {
         method: 'POST',
@@ -761,6 +825,30 @@ class ApiService {
       return await res.json();
     }
     return this.shiftAssignments.filter(a => a.user_id === userId);
+  }
+
+  public async getUsersWithShifts(): Promise<any[]> {
+    if (this.config.useLive) {
+      const res = await fetch(`${this.config.baseUrl}/shifts/users-with-shifts`, {
+        headers: this.getHeaders()
+      });
+      if (!res.ok) throw new Error('Failed loading staff shift assignments.');
+      return await res.json();
+    }
+    return [];
+  }
+
+  public async updateShift(id: number | string, fields: Partial<{ name: string; start_time: string; end_time: string; grace_minutes: number; status: string }>) {
+    if (this.config.useLive) {
+      const res = await fetch(`${this.config.baseUrl}/shifts/${id}`, {
+        method: 'PUT',
+        headers: this.getHeaders(),
+        body: JSON.stringify(fields)
+      });
+      if (!res.ok) throw new Error('Failed updating shift.');
+      return await res.json();
+    }
+    return { id, ...fields };
   }
 
   public async deleteShiftAssignment(assignmentId: number) {
@@ -1322,6 +1410,187 @@ class ApiService {
     }
     const cached = localStorage.getItem('evron_imported_cameras');
     return cached ? JSON.parse(cached) : [];
+  }
+
+  // REAL-TIME LOCATION TRACKING
+
+  public async postMyLocation(data: {
+    latitude: number;
+    longitude: number;
+    accuracy?: number;
+    wifi_ssid?: string | null;
+    network_type?: string;
+    is_developer_mode?: boolean;
+    walk_distance_m?: number;
+    other_app_opens?: number;
+    app_opens_detail?: string;
+  }): Promise<void> {
+    if (!this.config.useLive) return;
+    try {
+      await fetch(`${this.config.baseUrl}/me/location`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify(data)
+      });
+    } catch {}
+  }
+
+  public async getEmployeeLocations(): Promise<any[]> {
+    if (this.config.useLive) {
+      try {
+        const res = await fetch(`${this.config.baseUrl}/employee-locations`, {
+          headers: this.getHeaders()
+        });
+        if (res.ok) return await res.json();
+      } catch {}
+    }
+    return [];
+  }
+
+  public async getGpsStates(): Promise<Record<string, any>> {
+    const locations = await this.getEmployeeLocations();
+    const states: Record<string, any> = {};
+    const COMPANY_SSID = 'EVRON-SECURE-WIFI';
+    const FORBIDDEN_PKG_NAMES = ['whatsapp', 'instagram', 'clashofclans', 'fakegps', 'vpn'];
+
+    for (const loc of locations) {
+      const code = loc.employee_code;
+      if (!code) continue;
+      const ssid = loc.wifi_ssid || null;
+      const lastApp = loc.last_app || 'Evron Watchtower';
+      const isSsidViolating = ssid !== null && ssid !== COMPANY_SSID;
+      const isAppViolating = FORBIDDEN_PKG_NAMES.some(p =>
+        lastApp.toLowerCase().includes(p)
+      );
+      const minutesSinceUpdate = loc.updated_at
+        ? Math.floor((Date.now() - new Date(loc.updated_at).getTime()) / 60000)
+        : 0;
+
+      states[code] = {
+        walkedKm: parseFloat(((loc.walk_distance_m || 0) / 1000).toFixed(2)),
+        offsiteMinutes: 0,
+        currentApp: lastApp,
+        isAppViolating,
+        networkType: ssid ? 'wifi' : 'cellular',
+        wifiSsid: ssid || 'Mobile Data',
+        isSsidViolating,
+        isWearingUniform: true,
+        uniformComplianceRate: 100,
+        securityAlertCount: (loc.is_developer_mode ? 1 : 0) + (isAppViolating ? 1 : 0),
+        activeLat: parseFloat(loc.latitude),
+        activeLng: parseFloat(loc.longitude),
+        statusDetail: minutesSinceUpdate < 2
+          ? 'Live tracking active.'
+          : `Last update: ${minutesSinceUpdate} min ago.`,
+        isDeveloperModeOn: loc.is_developer_mode || false,
+        wifiBypassedOrAirplaneMode: false,
+        otherAppOpens: loc.other_app_opens || 0,
+        appOpensDetail: loc.app_opens_detail || {},
+      };
+    }
+    return states;
+  }
+
+  public async getGpsLogs(): Promise<any[]> {
+    const locations = await this.getEmployeeLocations();
+    return locations.map(loc => ({
+      id: loc.id,
+      employeeId: loc.employee_code,
+      employeeName: loc.user_name,
+      avatar: loc.avatar,
+      lat: loc.latitude,
+      lng: loc.longitude,
+      accuracy: loc.accuracy,
+      timestamp: loc.updated_at ? new Date(loc.updated_at).toLocaleString() : '–',
+      currentApp: loc.last_app || 'Unknown',
+      isAppViolating: false,
+      networkType: loc.network_type || 'unknown',
+      wifiSsid: loc.wifi_ssid || 'Unknown',
+      isSsidViolating: false,
+      isDeveloperModeOn: loc.is_developer_mode || false,
+      wifiBypassedOrAirplaneMode: false,
+      statusDetail: `Walk: ${((loc.walk_distance_m || 0) / 1000).toFixed(2)} km`
+    }));
+  }
+
+  // EXPENSES
+
+  public async submitExpense(data: {
+    category: string;
+    amount: number;
+    currency?: string;
+    expense_date: string;
+    description?: string;
+  }): Promise<any> {
+    if (this.config.useLive) {
+      const res = await fetch(`${this.config.baseUrl}/expenses`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify(data)
+      });
+      if (!res.ok) throw new Error('Failed to submit expense');
+      return await res.json();
+    }
+    return { id: Date.now(), ...data, status: 'Pending', created_at: new Date().toISOString() };
+  }
+
+  public async getMyExpenses(): Promise<any[]> {
+    if (this.config.useLive) {
+      const res = await fetch(`${this.config.baseUrl}/expenses/my`, {
+        headers: this.getHeaders()
+      });
+      if (!res.ok) throw new Error('Failed to fetch expenses');
+      return await res.json();
+    }
+    return [];
+  }
+
+  public async getAllExpenses(filters: { status?: string; user_id?: number } = {}): Promise<any[]> {
+    if (this.config.useLive) {
+      const params = new URLSearchParams();
+      if (filters.status) params.set('status', filters.status);
+      if (filters.user_id) params.set('user_id', String(filters.user_id));
+      const res = await fetch(`${this.config.baseUrl}/expenses/all?${params}`, {
+        headers: this.getHeaders()
+      });
+      if (!res.ok) throw new Error('Failed to fetch all expenses');
+      return await res.json();
+    }
+    return [];
+  }
+
+  public async updateExpenseStatus(id: number, status: 'Approved' | 'Rejected', admin_note?: string): Promise<any> {
+    if (this.config.useLive) {
+      const res = await fetch(`${this.config.baseUrl}/expenses/${id}/status`, {
+        method: 'PUT',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ status, admin_note })
+      });
+      if (!res.ok) throw new Error('Failed to update expense');
+      return await res.json();
+    }
+    return { id, status };
+  }
+
+  public async reportGpsLog(data: {
+    employeeId: string;
+    employeeName?: string;
+    avatar?: string;
+    lat: number;
+    lng: number;
+    accuracy?: number;
+    status?: string;
+    currentApp?: string;
+    isAppViolating?: boolean;
+    networkType?: string;
+    wifiSsid?: string;
+    isSsidViolating?: boolean;
+    isWearingUniform?: boolean;
+    statusDetail?: string;
+    isDeveloperModeOn?: boolean;
+    wifiBypassedOrAirplaneMode?: boolean;
+  }): Promise<void> {
+    // Legacy shim — no-op; real location data comes from postMyLocation
   }
 
   public async deleteImportedCamera(id: string): Promise<boolean> {

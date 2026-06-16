@@ -1,5 +1,13 @@
 package com.evron.aiapp;
 
+import android.os.Bundle;
 import com.getcapacitor.BridgeActivity;
+import com.evron.aiapp.plugins.DeviceInfoPlugin;
 
-public class MainActivity extends BridgeActivity {}
+public class MainActivity extends BridgeActivity {
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(DeviceInfoPlugin.class);
+        super.onCreate(savedInstanceState);
+    }
+}

@@ -95,11 +95,33 @@ export interface Shift {
   type?: string;
   timeRange?: string;
   gracePeriod?: string;
+  grace_minutes?: number;
   assignedStaffCount?: number;
   start_time?: string;
   end_time?: string;
+  break_start?: string;
+  break_end?: string;
+  entry_deadline?: string;
+  ot_cutoff_time?: string;
+  work_days?: number[];
+  status?: string;
   staff_count?: number;
-  staff?: any[]; // list of user ids assigned
+  staff?: any[];
+}
+
+export interface UserWithShift {
+  user_id: number;
+  user_name: string;
+  code: string;
+  department: string;
+  assignment_id: number | null;
+  shift_id: number | null;
+  shift_name: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  grace_minutes: number | null;
+  from_date: string | null;
+  to_date: string | null;
 }
 
 export interface ShiftAssignment {

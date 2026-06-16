@@ -33,11 +33,14 @@ import {
   Moon,
   MapPin,
   LocateFixed,
-  RefreshCw
+  RefreshCw,
+  Receipt
 } from 'lucide-react';
+import ExpenseTracker from './ExpenseTracker';
 import DeviceSimulator, { getDeviceHardwareState } from './DeviceSimulator';
 import AuraBackground from './AuraBackground';
 import { useRealDeviceStatus } from '../hooks/useRealDeviceStatus';
+import { getDeviceInfo, openUsageAccessSettings } from '../plugins/DeviceInfo';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { App as CapApp } from '@capacitor/app';
 import LiveMap from './LiveMap';
@@ -48,7 +51,7 @@ interface UserPortalProps {
 }
 
 export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'home' | 'attendance' | 'leave' | 'holidays' | 'profile'>('home');
+  const [activeSubTab, setActiveSubTab] = useState<'home' | 'attendance' | 'leave' | 'holidays' | 'expenses' | 'profile'>('home');
 
   // Hardware back button — go to home sub-tab instead of minimising
   useEffect(() => {
@@ -131,13 +134,76 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
 
   // Status metrics
   const [todayAttendance, setTodayAttendance] = useState<AttendanceRecord | null>(null);
-  const [isScanning, setIsScanning] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'err'; msg: string } | null>(null);
   const [hwState, setHwState] = useState(getDeviceHardwareState());
+
+  // Punch-in / Punch-out state
+  const [todayPunch, setTodayPunch] = useState<any>(null);
+  const [isPunching, setIsPunching] = useState(false);
+  const [elapsedDisplay, setElapsedDisplay] = useState('');
 
   // Real device GPS + internet status (replaces mock for enforcement)
   const realDevice = useRealDeviceStatus(profile.name);
   const [locationRefreshing, setLocationRefreshing] = useState(false);
+
+  // Walk distance accumulator — persists across sessions within the same day
+  const prevGpsRef = useRef<{ lat: number; lng: number } | null>(null);
+  const walkDistRef = useRef<number>(0);
+
+  useEffect(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const stored = localStorage.getItem(`evron_walk_m_${today}`);
+    walkDistRef.current = stored ? parseFloat(stored) : 0;
+  }, []);
+
+  // Accumulate walk distance whenever GPS updates
+  useEffect(() => {
+    if (!realDevice.locationReady || realDevice.latitude === 0) return;
+    const lat = realDevice.latitude;
+    const lng = realDevice.longitude;
+
+    if (prevGpsRef.current) {
+      const prev = prevGpsRef.current;
+      const R = 6371000;
+      const dLat = (lat - prev.lat) * Math.PI / 180;
+      const dLng = (lng - prev.lng) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) ** 2 +
+        Math.cos(prev.lat * Math.PI / 180) * Math.cos(lat * Math.PI / 180) *
+        Math.sin(dLng / 2) ** 2;
+      const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      if (dist > 3 && dist < 500) {
+        walkDistRef.current += dist;
+        const today = new Date().toISOString().slice(0, 10);
+        localStorage.setItem(`evron_walk_m_${today}`, String(walkDistRef.current));
+      }
+    }
+    prevGpsRef.current = { lat, lng };
+  }, [realDevice.latitude, realDevice.longitude, realDevice.locationReady]);
+
+  // Report location to backend every 30s while app is open
+  useEffect(() => {
+    const report = async () => {
+      if (!realDevice.locationReady || realDevice.latitude === 0) return;
+      try {
+        const deviceInfo = await getDeviceInfo();
+        await apiService.postMyLocation({
+          latitude: realDevice.latitude,
+          longitude: realDevice.longitude,
+          accuracy: undefined,
+          wifi_ssid: deviceInfo.wifiSsid,
+          network_type: deviceInfo.wifiSsid ? 'wifi' : 'cellular',
+          is_developer_mode: deviceInfo.isDeveloperMode,
+          walk_distance_m: Math.round(walkDistRef.current),
+          other_app_opens: deviceInfo.otherAppOpens,
+          app_opens_detail: deviceInfo.appOpensDetail,
+        });
+      } catch {}
+    };
+
+    report();
+    const interval = setInterval(report, 30_000);
+    return () => clearInterval(interval);
+  }, [realDevice.locationReady, realDevice.latitude, realDevice.longitude]);
 
   const handleRefreshLocation = async () => {
     setLocationRefreshing(true);
@@ -227,6 +293,9 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
   }, [fromDate, toDate]);
 
   const loadAllData = async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const firstOfMonth = today.slice(0, 7) + '-01';
+
     try {
       // 1. Profile
       const p = await apiService.getProfile();
@@ -251,20 +320,14 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
       const tRes = await apiService.getLeaveTypes();
       setLeaveTypes(tRes);
 
-      // 6. Attendance roster
-      const aRes = await apiService.getAttendanceList({
-        from: '2026-05-01',
-        to: '2026-05-31',
-        user_id: p.id,
-        status: null,
-        search: '',
-        page: 1,
-        limit: 50
-      });
-      setAttendance(aRes.rows);
+      // 6. Today's punch record
+      const punchRecord = await apiService.getMyTodayAttendance();
+      setTodayPunch(punchRecord);
 
-      // Today status logic looking for today 2026-05-24
-      const matchingToday = aRes.rows.find(row => row.date === '2026-05-24');
+      // 7. Attendance history — current month from my/history
+      const histRows = await apiService.getMyAttendanceHistory(firstOfMonth, today);
+      setAttendance(histRows);
+      const matchingToday = histRows.find(row => row.date === today);
       setTodayAttendance(matchingToday || null);
     } catch (err: any) {
       console.error(err);
@@ -277,78 +340,6 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
     setTimeout(() => setNotification(null), 4000);
   };
 
-  // Clock in simulator action
-  const handleClockInOut = async () => {
-    // Real GPS enforcement
-    if (!realDevice.gpsEnabled) {
-      const msg = realDevice.permissionDenied
-        ? 'Location permission denied. Please grant location access in Settings to check in.'
-        : 'GPS / Location services are OFF. Turn on your device location to submit attendance.';
-      triggerBanner('err', msg);
-      return;
-    }
-    if (!realDevice.isOnline) {
-      triggerBanner('err', 'No internet connection. Connect to WiFi or mobile data to check in.');
-      return;
-    }
-
-    setIsScanning(true);
-    triggerBanner('success', 'Synthesizing face dimensions scanner matrix...');
-
-    setTimeout(async () => {
-      try {
-        const nextStatus = todayAttendance?.status === 'Present' ? 'Absent' : 'Present';
-        const lat = realDevice.latitude;
-        const lng = realDevice.longitude;
-        const remarks = nextStatus === 'Present'
-          ? `Check-in verified (${lat.toFixed(4)}, ${lng.toFixed(4)})`
-          : `Check-out logged (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
-        
-        let targetId = todayAttendance?.id;
-        if (!targetId) {
-          // generate random id or check first
-          targetId = Math.floor(Math.random() * 900) + 100;
-        }
-
-        await apiService.updateAttendance(targetId, {
-          status: nextStatus as any,
-          remarks
-        });
-
-        // Report GPS log to backend with real coordinates
-        try {
-          await apiService.reportGpsLog({
-            employeeId: profile?.code || 'EMP001',
-            employeeName: profile?.name || 'Staff Member',
-            avatar: profile?.avatar || 'avatars/1.jpg',
-            lat,
-            lng,
-            accuracy: 10,
-            status: nextStatus === 'Present' ? 'Present' : 'Absent',
-            currentApp: hwState.activeApp || 'Evron',
-            isAppViolating: hwState.unauthorizedAppsInstalled,
-            networkType: realDevice.isOnline ? (hwState.internetType || 'wifi') : 'disconnected',
-            wifiSsid: hwState.wifiSsid,
-            isSsidViolating: false,
-            isWearingUniform: true,
-            statusDetail: remarks,
-            isDeveloperModeOn: hwState.developerMode,
-            wifiBypassedOrAirplaneMode: !realDevice.isOnline
-          });
-        } catch (gpsErr) {
-          console.warn('Soft telemetry update offline:', gpsErr);
-        }
-
-        // Refresh
-        await loadAllData();
-        triggerBanner('success', `Attendance recorded at [${lat.toFixed(4)}, ${lng.toFixed(4)}]. Marked as ${nextStatus}`);
-      } catch (err: any) {
-        triggerBanner('err', 'Failed to register surveillance scan log.');
-      } finally {
-        setIsScanning(false);
-      }
-    }, 2000);
-  };
 
   const handleTriggerSelfie = async (type: 'punch_in' | 'destination' | 'punch_out') => {
     if (!realDevice.gpsEnabled) {
@@ -432,6 +423,74 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
       triggerBanner('success', 'Leave request withdrawn.');
     } catch {
       triggerBanner('err', 'Cannot withdraw non-pending leave.');
+    }
+  };
+
+  // Elapsed time since punch-in — updates every 30s
+  useEffect(() => {
+    const update = () => {
+      if (!todayPunch?.mobile_punch_in || todayPunch?.mobile_punch_out) {
+        setElapsedDisplay('');
+        return;
+      }
+      const diffMs = Date.now() - new Date(todayPunch.mobile_punch_in).getTime();
+      const totalMins = Math.floor(diffMs / 60000);
+      const h = Math.floor(totalMins / 60);
+      const m = totalMins % 60;
+      setElapsedDisplay(h > 0 ? `${h}h ${m}m` : `${m}m`);
+    };
+    update();
+    const id = setInterval(update, 30_000);
+    return () => clearInterval(id);
+  }, [todayPunch]);
+
+  // Punch In
+  const handlePunchIn = async () => {
+    if (!realDevice.gpsEnabled) {
+      triggerBanner('err', realDevice.permissionDenied
+        ? 'Location permission denied. Grant location access to punch in.'
+        : 'GPS is OFF. Turn on Location services to punch in.');
+      return;
+    }
+    if (!realDevice.isOnline) {
+      triggerBanner('err', 'No internet connection. Connect to punch in.');
+      return;
+    }
+    setIsPunching(true);
+    try {
+      const deviceInfo = await getDeviceInfo();
+      const record = await apiService.punchIn({
+        lat: realDevice.locationReady ? realDevice.latitude : null,
+        lng: realDevice.locationReady ? realDevice.longitude : null,
+        wifi_ssid: deviceInfo.wifiSsid,
+      });
+      setTodayPunch(record);
+      triggerBanner('success', `Punched in at ${new Date(record.mobile_punch_in).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`);
+    } catch (err: any) {
+      triggerBanner('err', err.message || 'Punch in failed.');
+    } finally {
+      setIsPunching(false);
+    }
+  };
+
+  // Punch Out
+  const handlePunchOut = async () => {
+    if (!realDevice.isOnline) {
+      triggerBanner('err', 'No internet connection. Connect to punch out.');
+      return;
+    }
+    setIsPunching(true);
+    try {
+      const record = await apiService.punchOut({
+        lat: realDevice.locationReady ? realDevice.latitude : null,
+        lng: realDevice.locationReady ? realDevice.longitude : null,
+      });
+      setTodayPunch(record);
+      triggerBanner('success', `Punched out at ${new Date(record.mobile_punch_out).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`);
+    } catch (err: any) {
+      triggerBanner('err', err.message || 'Punch out failed.');
+    } finally {
+      setIsPunching(false);
     }
   };
 
@@ -742,42 +801,96 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
                   </div>
                 </div>
 
-                {/* Direct Logged Session quick status summary */}
-                <div className="pt-4 border-t border-zinc-800/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider block">Shift Status Checklist</span>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className={`w-3 h-3 rounded-full ${todayAttendance?.status === 'Present' ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
-                      <span className="text-sm font-bold text-black dark:text-white uppercase font-mono">
-                        {todayAttendance?.status === 'Present' ? 'ACTIVE & CLOCKED ON-DUTY' : 'NOT CLOCKED IN'}
+                {/* Punch In / Punch Out Card */}
+                <div className="pt-4 border-t border-zinc-800/40 space-y-4">
+                  <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider block">Today's Attendance</span>
+
+                  {/* Two time boxes */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className={`p-3 rounded-xl border ${todayPunch?.mobile_punch_in ? 'bg-emerald-950/20 border-emerald-900/40' : 'bg-zinc-900/30 border-zinc-800'}`}>
+                      <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-wider block mb-1">Punch In</span>
+                      {todayPunch?.mobile_punch_in ? (
+                        <>
+                          <span className="text-base font-black font-mono text-emerald-400">
+                            {new Date(todayPunch.mobile_punch_in).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                          {todayPunch.punch_in_lat && (
+                            <span className="text-[9px] text-zinc-500 font-mono block mt-0.5">
+                              📍 {Number(todayPunch.punch_in_lat).toFixed(4)}, {Number(todayPunch.punch_in_lng).toFixed(4)}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-sm font-mono text-zinc-600">—</span>
+                      )}
+                    </div>
+
+                    <div className={`p-3 rounded-xl border ${todayPunch?.mobile_punch_out ? 'bg-zinc-900/30 border-zinc-700' : 'bg-zinc-900/30 border-zinc-800'}`}>
+                      <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-wider block mb-1">Punch Out</span>
+                      {todayPunch?.mobile_punch_out ? (
+                        <>
+                          <span className="text-base font-black font-mono text-zinc-200">
+                            {new Date(todayPunch.mobile_punch_out).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                          {todayPunch.punch_out_lat && (
+                            <span className="text-[9px] text-zinc-500 font-mono block mt-0.5">
+                              📍 {Number(todayPunch.punch_out_lat).toFixed(4)}, {Number(todayPunch.punch_out_lng).toFixed(4)}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-sm font-mono text-zinc-600">—</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Status line + elapsed */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
+                        todayPunch?.mobile_punch_out ? 'bg-zinc-500' :
+                        todayPunch?.mobile_punch_in  ? 'bg-emerald-500 animate-pulse' :
+                        'bg-red-500'
+                      }`} />
+                      <span className="text-xs font-bold font-mono text-black dark:text-white uppercase">
+                        {todayPunch?.mobile_punch_out
+                          ? 'SHIFT ENDED'
+                          : todayPunch?.mobile_punch_in
+                            ? `ON DUTY${elapsedDisplay ? ' · ' + elapsedDisplay : ''}`
+                            : 'NOT PUNCHED IN'}
                       </span>
                     </div>
                   </div>
 
-                  <button
-                    onClick={handleClockInOut}
-                    disabled={isScanning || !realDevice.gpsEnabled || !realDevice.isOnline}
-                    className={`px-6 py-3 rounded-xl text-xs font-black font-mono tracking-wider flex items-center justify-center gap-2 uppercase transition-all shadow-xl leading-none cursor-pointer ${
-                      !realDevice.gpsEnabled || !realDevice.isOnline
-                        ? 'bg-zinc-900 border border-zinc-800 text-zinc-600 cursor-not-allowed'
-                        : isScanning
-                          ? 'bg-zinc-800 text-zinc-400 animate-pulse'
-                          : todayAttendance?.status === 'Present'
-                            ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
-                            : 'bg-red-600 hover:bg-red-500 text-white'
-                    }`}
-                  >
-                    <Camera className="w-4 h-4" />
-                    {isScanning
-                      ? 'Recording...'
-                      : !realDevice.gpsEnabled
-                        ? 'GPS REQUIRED'
+                  {/* Action Button */}
+                  {!todayPunch?.mobile_punch_out && (
+                    <button
+                      onClick={todayPunch?.mobile_punch_in ? handlePunchOut : handlePunchIn}
+                      disabled={isPunching || !realDevice.isOnline || (!todayPunch?.mobile_punch_in && !realDevice.gpsEnabled)}
+                      className={`w-full py-3 rounded-xl text-xs font-black font-mono tracking-wider flex items-center justify-center gap-2 uppercase transition-all shadow-lg ${
+                        isPunching
+                          ? 'bg-zinc-800 text-zinc-400 animate-pulse cursor-not-allowed'
+                          : !realDevice.isOnline
+                            ? 'bg-zinc-900 border border-zinc-800 text-zinc-600 cursor-not-allowed'
+                            : todayPunch?.mobile_punch_in
+                              ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                              : !realDevice.gpsEnabled
+                                ? 'bg-zinc-900 border border-zinc-800 text-zinc-600 cursor-not-allowed'
+                                : 'bg-red-600 hover:bg-red-500 text-white'
+                      }`}
+                    >
+                      <Clock className="w-4 h-4" />
+                      {isPunching
+                        ? 'Processing...'
                         : !realDevice.isOnline
                           ? 'NO INTERNET'
-                          : todayAttendance?.status === 'Present'
-                            ? 'CLOCK OUT'
-                            : 'CLOCK IN'}
-                  </button>
+                          : todayPunch?.mobile_punch_in
+                            ? 'PUNCH OUT'
+                            : !realDevice.gpsEnabled
+                              ? 'GPS REQUIRED'
+                              : 'PUNCH IN'}
+                    </button>
+                  )}
                 </div>
 
               </div>
@@ -955,7 +1068,7 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
                 <h2 className="text-base font-bold text-white tracking-tight">Your Attendance History Log</h2>
                 <p className="text-[10px] text-zinc-500 font-mono">Your attendance records by date</p>
               </div>
-              <span className="text-[10px] font-mono text-zinc-400">May 2026 Registry</span>
+              <span className="text-[10px] font-mono text-zinc-400">{new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' })} Registry</span>
             </div>
 
             <div className="bg-zinc-950 border border-zinc-900 rounded-2xl overflow-hidden">
@@ -1163,6 +1276,13 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
           </div>
         )}
 
+        {/* EXPENSES SECTION */}
+        {activeSubTab === 'expenses' && (
+          <div className="animate-fadeIn">
+            <ExpenseTracker currentUser={profile} />
+          </div>
+        )}
+
         {/* PROFILE MANAGER SECTION */}
         {activeSubTab === 'profile' && (
           <div className="space-y-6 animate-fadeIn">
@@ -1317,6 +1437,16 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
           >
             <CalendarDays className="w-4.5 h-4.5 mb-0.5" />
             <span className="text-[9px] font-semibold font-mono">Holidays</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveSubTab('expenses'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+            className={`flex flex-col items-center justify-center py-1 flex-1 text-center transition ${
+              activeSubTab === 'expenses' ? 'text-red-500 font-bold' : 'text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            <Receipt className="w-4.5 h-4.5 mb-0.5" />
+            <span className="text-[9px] font-semibold font-mono">Expenses</span>
           </button>
 
           <button

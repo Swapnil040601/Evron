@@ -34,37 +34,7 @@ interface ProductivityComplianceHubProps {
   onTriggerAlert?: (detail: string, cameraName: string, status: 'critical' | 'warning' | 'info') => void;
 }
 
-// Simulated GPS path coordinates for employees wandering offsite 
-// (relative to Bengaluru HQ coordinates: lat 12.9716, lng 77.5946)
-const EMPLOYEE_GPS_PATHS: Record<string, { lat: number; lng: number; label: string; details: string }[]> = {
-  'EMP001': [
-    { lat: 12.9716, lng: 77.5946, label: 'Main Entrance HQ', details: 'Within 500m geofence' },
-    { lat: 12.9718, lng: 77.5950, label: 'Block A Cafeteria', details: 'Within 500m geofence' },
-  ],
-  'EMP002': [
-    { lat: 12.9710, lng: 77.5940, label: 'Block B Courtyard', details: 'Within corporate campus' },
-    { lat: 12.9695, lng: 77.5930, label: 'Offsite: Richmond Road', details: 'Traveled 0.8 km offsite' },
-    { lat: 12.9680, lng: 77.5910, label: 'Offsite: MG Road Café', details: 'Traveled 2.1 km offsite' },
-  ],
-  'EMP003': [
-    { lat: 12.9716, lng: 77.5946, label: 'Boardroom HQ', details: 'Operations desk' },
-  ],
-  'EMP005': [
-    { lat: 12.9730, lng: 77.5980, label: 'Offsite: Kasturba Road', details: 'Traveled 1.4 km offsite' },
-    { lat: 12.9750, lng: 77.6010, label: 'Offsite: Cubbon Park Gate', details: 'Traveled 3.2 km offsite' },
-  ],
-  'EMP006': [
-    { lat: 12.9650, lng: 77.5850, label: 'Offsite: Residency Crossing', details: 'Traveled 4.5 km offsite' },
-  ]
-};
-
-// Static MDM configuration and whitelist
-const FORBIDDEN_APPS = [
-  { pkg: 'com.whatsapp', name: 'WhatsApp', risk: 'High (Data Leak Risk)' },
-  { pkg: 'com.instagram.android', name: 'Instagram', risk: 'Medium (Time Wastage)' },
-  { pkg: 'com.supercell.clashofclans', name: 'Clash of Clans', risk: 'Medium (Distraction)' },
-  { pkg: 'com.fakegps.spoofer', name: 'FakeGPS Hacktool', risk: 'Critical (Spoofing Alert)' }
-];
+const FORBIDDEN_APP_NAMES = ['whatsapp', 'instagram', 'clash', 'fakegps', 'vpn', 'tor', 'pubg', 'freefire'];
 
 export default function ProductivityComplianceHub({ employees, onTriggerAlert }: ProductivityComplianceHubProps) {
   // Navigation sub-tabs
@@ -73,7 +43,6 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
   // Search parameters
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Simulated State for custom telemetry, preserved in session/local state
   const [employeeStates, setEmployeeStates] = useState<Record<string, {
     walkedKm: number;
     offsiteMinutes: number;
@@ -90,171 +59,49 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
     statusDetail: string;
     isDeveloperModeOn: boolean;
     wifiBypassedOrAirplaneMode: boolean;
-  }>>({
-    'EMP001': {
-      walkedKm: 0.15,
-      offsiteMinutes: 0,
-      currentApp: 'Evron Watchtower',
-      isAppViolating: false,
-      networkType: 'wifi',
-      wifiSsid: 'EVRON-SECURE-WIFI',
-      isSsidViolating: false,
-      isWearingUniform: true,
-      uniformComplianceRate: 98,
-      securityAlertCount: 0,
-      activeLat: 12.9716,
-      activeLng: 77.5946,
-      statusDetail: 'Stationary at Operations Center.',
-      isDeveloperModeOn: false,
-      wifiBypassedOrAirplaneMode: false
-    },
-    'EMP002': {
-      walkedKm: 2.1,
-      offsiteMinutes: 125,
-      currentApp: 'WhatsApp',
-      isAppViolating: true,
-      networkType: 'cellular',
-      wifiSsid: 'None (Mobile Data)',
-      isSsidViolating: true,
-      isWearingUniform: false, // Out of uniform!
-      uniformComplianceRate: 65,
-      securityAlertCount: 1,
-      activeLat: 12.9680,
-      activeLng: 77.5910,
-      statusDetail: 'Left premises. Active forbidden app detected on corporate phone.',
-      isDeveloperModeOn: false,
-      wifiBypassedOrAirplaneMode: false
-    },
-    'EMP003': {
-      walkedKm: 0.0,
-      offsiteMinutes: 0,
-      currentApp: 'Evron Watchtower',
-      isAppViolating: false,
-      networkType: 'wifi',
-      wifiSsid: 'EVRON-SECURE-WIFI',
-      isSsidViolating: false,
-      isWearingUniform: true,
-      uniformComplianceRate: 100,
-      securityAlertCount: 0,
-      activeLat: 12.9716,
-      activeLng: 77.5946,
-      statusDetail: 'Onsite. Security check approved.',
-      isDeveloperModeOn: false,
-      wifiBypassedOrAirplaneMode: false
-    },
-    'EMP004': {
-      walkedKm: 1.25,
-      offsiteMinutes: 10,
-      currentApp: 'Evron Watchtower',
-      isAppViolating: false,
-      networkType: 'wifi',
-      wifiSsid: 'EVRON-SECURE-WIFI',
-      isSsidViolating: false,
-      isWearingUniform: true,
-      uniformComplianceRate: 100,
-      securityAlertCount: 0,
-      activeLat: 12.9718,
-      activeLng: 77.5950,
-      statusDetail: 'Onsite patrol track complete.',
-      isDeveloperModeOn: false,
-      wifiBypassedOrAirplaneMode: false
-    },
-    'EMP005': {
-      walkedKm: 3.2,
-      offsiteMinutes: 180,
-      currentApp: 'Instagram',
-      isAppViolating: true,
-      networkType: 'cellular',
-      wifiSsid: 'None (Mobile Data)',
-      isSsidViolating: true,
-      isWearingUniform: false,
-      uniformComplianceRate: 40,
-      securityAlertCount: 2,
-      activeLat: 12.9750,
-      activeLng: 77.6010,
-      statusDetail: 'Extended offsite break. Roster alarm triggered.',
-      isDeveloperModeOn: true,
-      wifiBypassedOrAirplaneMode: false
-    },
-    'EMP006': {
-      walkedKm: 4.5,
-      offsiteMinutes: 210,
-      currentApp: 'Clash of Clans',
-      isAppViolating: true,
-      networkType: 'cellular',
-      wifiSsid: 'None (Mobile Data)',
-      isSsidViolating: true,
-      isWearingUniform: true,
-      uniformComplianceRate: 85,
-      securityAlertCount: 1,
-      activeLat: 12.9650,
-      activeLng: 77.5850,
-      statusDetail: 'Absent field operations with game running.',
-      isDeveloperModeOn: false,
-      wifiBypassedOrAirplaneMode: true
-    },
-    'EMP007': {
-      walkedKm: 0.3,
-      offsiteMinutes: 0,
-      currentApp: 'Evron Watchtower',
-      isAppViolating: false,
-      networkType: 'wifi',
-      wifiSsid: 'EVRON-SECURE-WIFI',
-      isSsidViolating: false,
-      isWearingUniform: true,
-      uniformComplianceRate: 99,
-      securityAlertCount: 0,
-      activeLat: 12.9716,
-      activeLng: 77.5946,
-      statusDetail: 'Onsite at workstation.',
-      isDeveloperModeOn: false,
-      wifiBypassedOrAirplaneMode: false
-    },
-    'EMP008': {
-      walkedKm: 0.8,
-      offsiteMinutes: 25,
-      currentApp: 'FakeGPS Hacktool',
-      isAppViolating: true,
-      networkType: 'cellular',
-      wifiSsid: 'None (Mobile Data)',
-      isSsidViolating: true,
-      isWearingUniform: true,
-      uniformComplianceRate: 90,
-      securityAlertCount: 3,
-      activeLat: 12.9710,
-      activeLng: 77.5940,
-      statusDetail: 'Critical Alarm! Location spoofing tools verified.',
-      isDeveloperModeOn: true,
-      wifiBypassedOrAirplaneMode: true
-    }
-  });
+  }>>({});
 
-  // Real or simulated GPS Logs list for backend persistence
   const [gpsLogs, setGpsLogs] = useState<any[]>([]);
   const [isLoadingGps, setIsLoadingGps] = useState<boolean>(true);
+  const COMPANY_SSID = 'EVRON-SECURE-WIFI';
 
-  // Sync to backend or local database state
-  useEffect(() => {
-    async function initGpsData() {
-      setIsLoadingGps(true);
-      try {
-        const liveStates = await apiService.getGpsStates();
-        if (liveStates && Object.keys(liveStates).length > 0) {
-          setEmployeeStates(liveStates);
-        }
-        const liveLogs = await apiService.getGpsLogs();
-        setGpsLogs(liveLogs);
-      } catch (err) {
-        console.warn('Failed to pull backend GPS log layers:', err);
-      } finally {
-        setIsLoadingGps(false);
+  const refreshLiveData = async () => {
+    try {
+      const liveStates = await apiService.getGpsStates();
+      if (liveStates && Object.keys(liveStates).length > 0) {
+        setEmployeeStates(prev => {
+          const merged: typeof prev = { ...prev };
+          for (const [code, st] of Object.entries(liveStates)) {
+            merged[code] = {
+              ...st,
+              // preserve manual overrides (e.g. simulated boundary exits) only if newer
+              activeLat: st.activeLat,
+              activeLng: st.activeLng,
+            } as any;
+          }
+          return merged;
+        });
+        const logs = await apiService.getGpsLogs();
+        setGpsLogs(logs);
       }
+    } catch (err) {
+      console.warn('Failed to pull live location data:', err);
+    } finally {
+      setIsLoadingGps(false);
     }
-    initGpsData();
+  };
+
+  // Initial load + poll every 30s
+  useEffect(() => {
+    setIsLoadingGps(true);
+    refreshLiveData();
+    const interval = setInterval(refreshLiveData, 30_000);
+    return () => clearInterval(interval);
   }, []);
 
-  // Selected employee on map
-  const [selectedEmpId, setSelectedEmpId] = useState<string>('EMP002');
+  const [selectedEmpId, setSelectedEmpId] = useState<string>(
+    employees[0]?.id || ''
+  );
 
   // Geofence administrator variables
   const [geofenceCenter, setGeofenceCenter] = useState<{ lat: number; lng: number }>({ lat: 12.9716, lng: 77.5946 });
@@ -521,59 +368,6 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
     }
   ]);
 
-  // Map Animation simulation
-  useEffect(() => {
-    const timer = setInterval(() => {
-      // Simulate small kilometer increases and coordinate shifts for offsite employees
-      setEmployeeStates(prev => {
-        const next = { ...prev };
-        
-        // EMP002 wanders on Richmond Road
-        if (next['EMP002']) {
-          const shift = (Math.random() - 0.5) * 0.0002;
-          const newLat = parseFloat((next['EMP002'].activeLat + shift).toFixed(5));
-          const newLng = parseFloat((next['EMP002'].activeLng + shift).toFixed(5));
-          next['EMP002'] = {
-            ...next['EMP002'],
-            walkedKm: parseFloat((next['EMP002'].walkedKm + 0.02).toFixed(2)),
-            offsiteMinutes: next['EMP002'].offsiteMinutes + 1,
-            activeLat: newLat,
-            activeLng: newLng,
-          };
-          
-          // Check geofence crossing triggers
-          const updates = checkEmployeeGeofence('EMP002', newLat, newLng, prev);
-          if (updates) {
-            next['EMP002'] = { ...next['EMP002'], ...updates };
-          }
-        }
-
-        // EMP005 wanders near Park
-        if (next['EMP005']) {
-          const shift = (Math.random() - 0.5) * 0.0003;
-          const newLat = parseFloat((next['EMP005'].activeLat + shift).toFixed(5));
-          const newLng = parseFloat((next['EMP005'].activeLng + shift).toFixed(5));
-          next['EMP005'] = {
-            ...next['EMP005'],
-            walkedKm: parseFloat((next['EMP005'].walkedKm + 0.03).toFixed(2)),
-            offsiteMinutes: next['EMP005'].offsiteMinutes + 1,
-            activeLat: newLat,
-            activeLng: newLng,
-          };
-
-          // Check geofence crossing triggers
-          const updates = checkEmployeeGeofence('EMP005', newLat, newLng, prev);
-          if (updates) {
-            next['EMP005'] = { ...next['EMP005'], ...updates };
-          }
-        }
-
-        return next;
-      });
-    }, 10000);
-
-    return () => clearInterval(timer);
-  }, []);
 
   // Sync to outer system dashboard alert system
   const triggerOuterSystemAlert = (detail: string, cameraName: string, status: 'critical' | 'warning' | 'info') => {
@@ -767,7 +561,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
   const handleExportExcel = () => {
     // Generate real CSV formatted data (fully matches EXCEL and spreadsheet applications)
     let csvContent = 'data:text/csv;charset=utf-8,';
-    csvContent += 'Employee ID,Employee Name,Department,Role,Status,Walked Kilometers (Total),Offsite Duration (Min),Active Foreground App,Active Network Interface,WiFi SSID,Uniform Status,Uniform Compliance Rate,Security Violations Count,Latitude,Longitude\n';
+    csvContent += 'Employee ID,Employee Name,Department,Role,Status,Walked Kilometers (Total),Other App Opens Today,Active Network Interface,WiFi SSID,Developer Mode,Security Violations Count,Latitude,Longitude\n';
     
     employees.forEach(emp => {
       const state = employeeStates[emp.id] || {
@@ -791,12 +585,10 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
         `"${emp.role}"`,
         emp.status,
         state.walkedKm,
-        state.offsiteMinutes,
-        state.currentApp,
+        (state as any).otherAppOpens ?? 0,
         state.networkType,
         state.wifiSsid,
-        state.isWearingUniform ? 'COMPLIANT' : 'VIOLATION/ALERTED',
-        `${state.uniformComplianceRate}%`,
+        state.isDeveloperModeOn ? 'YES' : 'NO',
         state.securityAlertCount,
         state.activeLat,
         state.activeLng
@@ -823,21 +615,22 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
            emp.department.toLowerCase().includes(query);
   });
 
-  // Fetch the track records of the selected employee
   const selectedEmpState = employeeStates[selectedEmpId] || {
     walkedKm: 0,
     offsiteMinutes: 0,
-    currentApp: 'Offline',
+    currentApp: 'Waiting for device data…',
     isAppViolating: false,
-    networkType: 'cellular',
-    wifiSsid: 'Disconnected',
+    networkType: 'cellular' as const,
+    wifiSsid: '–',
     isSsidViolating: false,
     isWearingUniform: true,
     uniformComplianceRate: 100,
     securityAlertCount: 0,
-    activeLat: 12.9716,
-    activeLng: 77.5946,
-    statusDetail: 'No data.'
+    activeLat: geofenceCenter.lat,
+    activeLng: geofenceCenter.lng,
+    statusDetail: 'No live data yet. Employee must open the app.',
+    isDeveloperModeOn: false,
+    wifiBypassedOrAirplaneMode: false,
   };
 
   const selectedEmployeeObj = employees.find(e => e.id === selectedEmpId) || employees[0];
@@ -891,7 +684,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
           <button
             onClick={() => {
               setActiveSubTab('gps_history');
-              apiService.getGpsLogs().then(logs => setGpsLogs(logs));
+              refreshLiveData();
             }}
             className={`px-3 py-1.5 text-xs font-mono font-bold uppercase transition rounded-md flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
               activeSubTab === 'gps_history'
@@ -980,6 +773,15 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
                                 Offline Evsd
                               </span>
                             )}
+                            {(stateObj as any).otherAppOpens > 0 && (
+                              <span className={`text-[7.5px] px-1 rounded font-mono font-bold uppercase border ${
+                                (stateObj as any).otherAppOpens > 10
+                                  ? 'bg-red-950/60 text-red-400 border-red-900/55 animate-pulse'
+                                  : 'bg-amber-950/40 text-amber-400 border-amber-900/40'
+                              }`}>
+                                {(stateObj as any).otherAppOpens}× Apps
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1005,8 +807,11 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
             </div>
             
             <div className="mt-4 pt-3 border-t border-zinc-800 text-[10px] text-zinc-500 font-mono font-semibold flex items-center justify-between">
-              <span>GPS SYNC CLOCK</span>
-              <span className="text-emerald-400 animate-pulse">● SECURED LINK ACTIVE</span>
+              <span>LIVE GPS · POLLS EVERY 30S</span>
+              {Object.keys(employeeStates).length > 0
+                ? <span className="text-emerald-400 animate-pulse">● {Object.keys(employeeStates).length} ACTIVE</span>
+                : <span className="text-zinc-600">● AWAITING DATA</span>
+              }
             </div>
           </div>
 
@@ -1181,29 +986,6 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
                                       nextState[selectedEmpId] = { ...nextState[selectedEmpId], ...updates };
                                     }
                                     
-                                    // Sync to backend persistent DB
-                                    const empObj = employees.find(e => e.id === selectedEmpId);
-                                    apiService.reportGpsLog({
-                                      employeeId: selectedEmpId,
-                                      employeeName: empObj?.name,
-                                      avatar: empObj?.avatar,
-                                      lat: outsideLat,
-                                      lng: outsideLng,
-                                      accuracy: 15,
-                                      status: 'Present',
-                                      currentApp: current.currentApp,
-                                      isAppViolating: current.isAppViolating,
-                                      networkType: current.networkType,
-                                      wifiSsid: current.wifiSsid,
-                                      isSsidViolating: current.isSsidViolating,
-                                      isWearingUniform: current.isWearingUniform,
-                                      statusDetail: 'Critical Boundary Exit: Simulating off-premises wander.',
-                                      isDeveloperModeOn: current.isDeveloperModeOn,
-                                      wifiBypassedOrAirplaneMode: current.wifiBypassedOrAirplaneMode
-                                    }).then(() => {
-                                      apiService.getGpsLogs().then(logs => setGpsLogs(logs));
-                                    });
-
                                     return nextState;
                                   });
                                 }}
@@ -1237,29 +1019,6 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
                                       nextState[selectedEmpId] = { ...nextState[selectedEmpId], ...updates };
                                     }
 
-                                    // Sync to backend persistent DB
-                                    const empObj = employees.find(e => e.id === selectedEmpId);
-                                    apiService.reportGpsLog({
-                                      employeeId: selectedEmpId,
-                                      employeeName: empObj?.name,
-                                      avatar: empObj?.avatar,
-                                      lat: insideLat,
-                                      lng: insideLng,
-                                      accuracy: 5,
-                                      status: 'Present',
-                                      currentApp: 'Evron Watchtower',
-                                      isAppViolating: false,
-                                      networkType: 'wifi',
-                                      wifiSsid: 'EVRON-SECURE-WIFI',
-                                      isSsidViolating: false,
-                                      isWearingUniform: true,
-                                      statusDetail: 'Teleported to secure HQ perimeter center.',
-                                      isDeveloperModeOn: false,
-                                      wifiBypassedOrAirplaneMode: false
-                                    }).then(() => {
-                                      apiService.getGpsLogs().then(logs => setGpsLogs(logs));
-                                    });
-                                    
                                     return nextState;
                                   });
                                 }}
@@ -1320,23 +1079,45 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
                     )}
                   </div>
 
-                  <div className="p-3 bg-zinc-950 border border-zinc-850 rounded-lg flex items-center justify-between">
-                    <div>
-                      <span className="text-[9px] text-zinc-550 font-mono uppercase block">FOREGROUND APP PROCESS</span>
-                      <strong className={`text-xs font-mono mb-1 block ${selectedEmpState.isAppViolating ? 'text-rose-400' : 'text-zinc-200'}`}>
-                        {selectedEmpState.isDeveloperModeOn ? 'None (Blocked by Security)' : selectedEmpState.currentApp}
-                      </strong>
+                  {/* Other app opens count */}
+                  <div className="p-3 bg-zinc-950 border border-zinc-850 rounded-lg space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] text-zinc-550 font-mono uppercase block">OTHER APPS OPENED TODAY</span>
+                      <span className={`text-sm font-bold font-mono ${
+                        (selectedEmpState as any).otherAppOpens > 10
+                          ? 'text-red-400'
+                          : (selectedEmpState as any).otherAppOpens > 5
+                          ? 'text-amber-400'
+                          : 'text-emerald-400'
+                      }`}>
+                        {(selectedEmpState as any).otherAppOpens ?? 0}×
+                      </span>
                     </div>
 
-                    {selectedEmpState.isAppViolating ? (
-                      <span className="bg-rose-500/10 text-rose-400 border border-rose-500/30 text-[9px] font-mono px-2 py-0.5 rounded font-bold uppercase animate-pulse">
-                        ⚠️ VIOLATION
-                      </span>
-                    ) : (
-                      <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[8px] font-mono px-1.5 py-0.5 rounded font-bold uppercase">
-                        ✅ SAFE APP
-                      </span>
-                    )}
+                    {/* Per-app breakdown */}
+                    {(() => {
+                      const detail = (selectedEmpState as any).appOpensDetail;
+                      const entries = detail && typeof detail === 'object'
+                        ? Object.entries(detail) as [string, number][]
+                        : [];
+                      if (entries.length === 0) return (
+                        <p className="text-[9px] text-zinc-600 font-mono">No app usage data available.</p>
+                      );
+                      const sorted = entries.sort((a, b) => b[1] - a[1]).slice(0, 6);
+                      return (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {sorted.map(([app, count]) => (
+                            <span key={app} className={`text-[8px] font-mono px-1.5 py-0.5 rounded border font-bold ${
+                              FORBIDDEN_APP_NAMES.some(n => app.toLowerCase().includes(n))
+                                ? 'bg-rose-950/40 text-rose-400 border-rose-900/50'
+                                : 'bg-zinc-900 text-zinc-400 border-zinc-800'
+                            }`}>
+                              {app} ×{count}
+                            </span>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
@@ -1503,13 +1284,9 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
             </div>
             
             <button
-              onClick={async () => {
-                try {
-                  const logs = await apiService.getGpsLogs();
-                  setGpsLogs(logs);
-                } catch (err) {
-                  console.error(err);
-                }
+              onClick={() => {
+                setIsLoadingGps(true);
+                refreshLiveData();
               }}
               className="px-3.5 py-2 bg-red-600 hover:bg-red-500 hover:shadow-red-500/10 shadow-md text-white font-bold font-mono text-xs rounded-lg transition flex items-center gap-1.5 cursor-pointer"
             >

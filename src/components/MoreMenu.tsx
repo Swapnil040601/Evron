@@ -4,10 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { Utensils, Zap, Calendar, Settings as SettingsIcon, Flame, ShieldAlert, FileSpreadsheet, ArrowLeft } from 'lucide-react';
-
-// Import subcomponents
-import Canteen from './Canteen';
+import { Zap, Calendar, Settings as SettingsIcon, Flame, ShieldAlert, FileSpreadsheet, ArrowLeft } from 'lucide-react';
 import Shifts from './Shifts';
 import Holidays from './Holidays';
 import Settings from './Settings';
@@ -16,16 +13,14 @@ import Reports from './Reports';
 import ProductivityComplianceHub from './ProductivityComplianceHub';
 
 // Import Types
-import { Employee, CanteenVisit, Shift, Holiday, SecurityEvent } from '../types';
+import { Employee, Holiday, SecurityEvent, UserProfile } from '../types';
 
 interface MoreMenuProps {
   employees: Employee[];
-  canteenVisits: CanteenVisit[];
-  onAddCanteenVisit: (visit: CanteenVisit) => void;
-  shifts: Shift[];
   holidays: Holiday[];
   securityEvents: SecurityEvent[];
   onAddSecurityEvent: (event: SecurityEvent) => void;
+  currentUser: UserProfile;
   activePreSelectedSubTool?: string | null;
   onClearPreSelectedTool?: () => void;
   onSyncData?: () => void;
@@ -35,12 +30,10 @@ interface MoreMenuProps {
 
 export default function MoreMenu({
   employees,
-  canteenVisits,
-  onAddCanteenVisit,
-  shifts,
   holidays,
   securityEvents,
   onAddSecurityEvent,
+  currentUser,
   activePreSelectedSubTool,
   onClearPreSelectedTool,
   onSyncData,
@@ -61,15 +54,7 @@ export default function MoreMenu({
     }
   };
 
-  // Define the 8 admin tools lists
   const toolsList = [
-    {
-      id: 'Canteen',
-      name: 'Smart Canteen',
-      desc: 'Meal timings & billing',
-      icon: <Utensils className="w-5 h-5 text-emerald-400" />,
-      tag: 'MEAL LABS'
-    },
     {
       id: 'Shifts',
       name: 'Shift Schedules',
@@ -136,12 +121,8 @@ export default function MoreMenu({
         </button>
 
         <div className="bg-zinc-905 w-full">
-          {activeTool === 'Canteen' && (
-            <Canteen visits={canteenVisits} onAddVisit={onAddCanteenVisit} />
-          )}
-
           {activeTool === 'Shifts' && (
-            <Shifts shifts={shifts} />
+            <Shifts currentUser={currentUser} />
           )}
 
           {activeTool === 'Holidays' && (

@@ -8,7 +8,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ShieldCheck,
-  Video,
   LayoutGrid,
   AlertTriangle,
   Info,
@@ -17,11 +16,9 @@ import {
   FileSliders,
   LogOut,
   ArrowRight,
-  Play,
-  Utensils,
+  Receipt,
   Zap,
   HelpCircle,
-  Radio,
   Settings as SettingsIcon,
   Sun,
   Moon
@@ -30,7 +27,7 @@ import { App as CapApp } from '@capacitor/app';
 import { showAlert } from './utils/dialog';
 
 // Import Types
-import { Employee, LeaveApplication, Holiday, Shift, UserProfile } from './types';
+import { Employee, LeaveApplication, Holiday, UserProfile } from './types';
 import { apiService } from './services/api';
 import { triggerHaptic, HAPTIC_PATTERNS } from './services/haptics';
 
@@ -38,7 +35,7 @@ import { triggerHaptic, HAPTIC_PATTERNS } from './services/haptics';
 import Dashboard from './components/Dashboard';
 import Attendance from './components/Attendance';
 import LeaveApprovals from './components/LeaveApprovals';
-import LiveView from './components/LiveView';
+import ExpenseTracker from './components/ExpenseTracker';
 import MoreMenu from './components/MoreMenu';
 import DaySummary from './components/DaySummary';
 import Users from './components/Users';
@@ -50,7 +47,7 @@ import ProductivityComplianceHub from './components/ProductivityComplianceHub';
 
 export default function App() {
   // Navigation Router State for Admin/Super Admin
-  const [activeTab, setActiveTab] = useState<'Dashboard' | 'Attendance' | 'Leave' | 'Live' | 'More' | 'Day Summary' | 'Users' | 'Productivity'>('Dashboard');
+  const [activeTab, setActiveTab] = useState<'Dashboard' | 'Attendance' | 'Leave' | 'Expenses' | 'More' | 'Day Summary' | 'Users' | 'Productivity'>('Dashboard');
   // Reset keys: increment to force a sub-section back to its main page
   const [moreMenuKey, setMoreMenuKey] = useState(0);
   const [productivityKey, setProductivityKey] = useState(0);
@@ -114,7 +111,7 @@ export default function App() {
   const [leaveRequests, setLeaveRequests] = useState<LeaveApplication[]>([]);
   const [todayAttendanceCount, setTodayAttendanceCount] = useState({ present: 0, absent: 0, total: 0 });
   
-  const [cameras, setCameras] = useState<any[]>([]);
+  // cameras state removed — LiveView removed
 
   const [simAlerts, setSimAlerts] = useState<any[]>([]);
   const [unreadAlerts, setUnreadAlerts] = useState(0);
@@ -132,7 +129,7 @@ export default function App() {
     let listener: any;
     const setup = async () => {
       listener = await CapApp.addListener('backButton', () => {
-        const tabOrder: typeof activeTab[] = ['Dashboard', 'Live', 'Productivity', 'More'];
+        const tabOrder: typeof activeTab[] = ['Dashboard', 'Expenses', 'Productivity', 'More'];
         if (activeTab !== 'Dashboard') {
           // Sub-tabs like Leave/Attendance/Users go back to More
           if (['Leave', 'Attendance', 'Day Summary', 'Users'].includes(activeTab)) {
@@ -199,20 +196,6 @@ export default function App() {
     }
   };
 
-  const [importedCameras, setImportedCameras] = useState<any[]>([]);
-
-  const loadCustomCameras = async () => {
-    try {
-      const customCams = await apiService.getImportedCameras();
-      if (customCams && customCams.length > 0) {
-        setCameras(customCams);
-      } else {
-        setImportedCameras([]);
-      }
-    } catch (err) {
-      console.warn('Error reading dynamic imported cameras:', err);
-    }
-  };
 
   const loadAdminData = async () => {
     try {
@@ -266,10 +249,8 @@ export default function App() {
         total: dStats.summary.totalEmployees
       });
 
-      // Fetch dynamic NVR custom cameras
-      await loadCustomCameras();
 
-    } catch (err) {
+} catch (err) {
       console.warn('Sync logs error in watchtower loader.');
     }
   };
@@ -347,65 +328,6 @@ export default function App() {
     }
   };
 
-  // Trigger Local Camera alerts trigger testing
-  const handleTriggerCameraAlert = async (cameraId: string) => {
-    const isDefault = cameras.some(c => c.id === cameraId);
-    if (isDefault) {
-      setCameras(prev => prev.map(c => {
-        if (c.id === cameraId) {
-          let alarmMsg = 'Critical perimeter motion breach unregistered!';
-          if (cameraId === 'CAM-01') alarmMsg = '🚨 VISITOR STARE ALARM: Continuous camera observing (observing 120s+) reported in CRM!';
-          if (cameraId === 'CAM-02') alarmMsg = '⚡ GOLD AREA ALARM: Continuous hand movement or theft detected in 5x5ft Precious zone!';
-          if (cameraId === 'CAM-03') alarmMsg = '🔐 SECURE ROOM: Unauthorized entity inside IT Vault & Server Cage limits!';
-          if (cameraId === 'CAM-04') alarmMsg = '🔒 SHUTTLE ALARM: High-security transit shuttle locks or seals compromised!';
-          if (cameraId === 'CAM-05') alarmMsg = '🧹 PREMISES ALARM: Trash, papers or unclean floor debris detected!';
-          return { ...c, alertFlag: true, alertMsg: alarmMsg };
-        }
-        return c;
-      }));
-    } else {
-      const alarmMsg = `🚨 NVR ACTIVE DETECTED ALARM: High threat motion registered on camera node ${cameraId}!`;
-      setImportedCameras(prev => prev.map(c => {
-        if (c.id === cameraId) {
-          return { ...c, alertFlag: true, alertMsg: alarmMsg };
-        }
-        return c;
-      }));
-      try {
-        await apiService.simulateAlertCustomCamera(cameraId, true, alarmMsg);
-      } catch (err) {
-        console.warn('Backend custom alert sync failed', err);
-      }
-    }
-
-    setUnreadAlerts(prev => prev + 1);
-  };
-
-  const handleClearCameraAlert = async (cameraId: string) => {
-    // Tactile haptic feedback pattern for incident dismiss actions
-    triggerHaptic(HAPTIC_PATTERNS.success);
-    const isDefault = cameras.some(c => c.id === cameraId);
-    if (isDefault) {
-      setCameras(prev => prev.map(c => {
-        if (c.id === cameraId) {
-          return { ...c, alertFlag: false, alertMsg: undefined };
-        }
-        return c;
-      }));
-    } else {
-      setImportedCameras(prev => prev.map(c => {
-        if (c.id === cameraId) {
-          return { ...c, alertFlag: false, alertMsg: undefined };
-        }
-        return c;
-      }));
-      try {
-        await apiService.simulateAlertCustomCamera(cameraId, false);
-      } catch (err) {
-        console.warn('Backend custom alert clear sync failed', err);
-      }
-    }
-  };
 
   // Render Gatekeepers
   if (isAuthLoading) {
@@ -588,11 +510,11 @@ export default function App() {
                     <button
                       onClick={() => {
                         setShowAlertsDropdown(false);
-                        setActiveTab('Live');
+                        setActiveTab('Productivity');
                       }}
                       className="w-full py-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-850 hover:border-red-900 rounded text-[9.5px] uppercase font-mono tracking-widest text-zinc-400 hover:text-white transition"
                     >
-                      OPEN CCTV MONITORING
+                      OPEN PRODUCTIVITY MONITOR
                     </button>
                   </div>
                 </div>
@@ -684,28 +606,16 @@ export default function App() {
             </motion.div>
           )}
 
-          {activeTab === 'Live' && (
+          {activeTab === 'Expenses' && currentUser && (
             <motion.div
-              key="Live"
+              key="Expenses"
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.18 }}
               className="w-full"
             >
-              <LiveView
-                cameras={[...cameras, ...importedCameras]}
-                trackLogs={simAlerts.map((a: any) => ({
-                  id: `T-${a.id}`,
-                  type: 'system',
-                  detail: a.message,
-                  time: 'Just Now',
-                  cameraName: 'Unified Scanner'
-                }))}
-                onTriggerAlert={handleTriggerCameraAlert}
-                onClearAlert={handleClearCameraAlert}
-                onRefreshCameras={loadCustomCameras}
-              />
+              <ExpenseTracker currentUser={currentUser} />
             </motion.div>
           )}
 
@@ -721,12 +631,10 @@ export default function App() {
               <MoreMenu
                 key={moreMenuKey}
                 employees={employees}
-                canteenVisits={[]}
-                onAddCanteenVisit={() => {}}
-                shifts={[]}
                 holidays={[]}
                 securityEvents={[]}
                 onAddSecurityEvent={() => {}}
+                currentUser={currentUser}
                 activePreSelectedSubTool={preSelectedMoreTool}
                 onClearPreSelectedTool={handleClearPreSelectedTool}
                 onSyncData={loadAdminData}
@@ -824,22 +732,22 @@ export default function App() {
             whileTap={{ scale: 0.95 }}
             onClick={() => {
               triggerHaptic(HAPTIC_PATTERNS.light);
-              setActiveTab('Live');
+              setActiveTab('Expenses');
               handleClearPreSelectedTool();
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             className={`flex flex-col items-center justify-center flex-1 py-1.5 text-center transition relative outline-none select-none ${
-              activeTab === 'Live' 
-                ? 'text-red-500 font-bold' 
+              activeTab === 'Expenses'
+                ? 'text-red-500 font-bold'
                 : 'text-zinc-500 hover:text-zinc-300'
             }`}
           >
-            <Video className={`w-4.5 h-4.5 mb-1 transition-transform duration-250 ${activeTab === 'Live' ? 'scale-110 text-red-500' : ''}`} />
-            <span className="text-[10px] font-semibold font-mono tracking-tight">Live Video</span>
-            {activeTab === 'Live' && (
-              <motion.span 
-                layoutId="active-nav-glow" 
-                className="absolute -top-2 w-6 h-0.5 bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)] rounded-full" 
+            <Receipt className={`w-4.5 h-4.5 mb-1 transition-transform duration-250 ${activeTab === 'Expenses' ? 'scale-110 text-red-500' : ''}`} />
+            <span className="text-[10px] font-semibold font-mono tracking-tight">Expenses</span>
+            {activeTab === 'Expenses' && (
+              <motion.span
+                layoutId="active-nav-glow"
+                className="absolute -top-2 w-6 h-0.5 bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)] rounded-full"
                 transition={{ type: "spring", stiffness: 380, damping: 30 }}
               />
             )}
