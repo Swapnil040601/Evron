@@ -29,7 +29,7 @@ export default function Login({ onLogin }: LoginProps) {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-6 theme-light:bg-slate-50">
       <div className="mb-8 flex flex-col items-center gap-3">
         <div className="w-16 h-16 rounded-2xl bg-red-600 flex items-center justify-center shadow-lg shadow-red-900/40">
           <ScanFace className="w-9 h-9 text-white" />
