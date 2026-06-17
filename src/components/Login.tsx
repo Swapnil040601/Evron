@@ -7,9 +7,8 @@ import React, { useState, useEffect } from 'react';
 import { apiService, SIMULATOR_ACCOUNTS } from '../services/api';
 import { ShieldCheck, Server, AlertTriangle, Eye, EyeOff, Radio, Sparkles, LogIn, ExternalLink, Sun, Moon, Fingerprint } from 'lucide-react';
 import { UserProfile } from '../types';
-import DeviceSimulator, { getDeviceHardwareState } from './DeviceSimulator';
+import DeviceSimulator from './DeviceSimulator';
 import { BiometricAuth } from '@aparajita/capacitor-biometric-auth';
-import { Geolocation } from '@capacitor/geolocation';
 
 interface LoginProps {
   onLoginSuccess: (user: UserProfile) => void;
@@ -106,33 +105,10 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     }
   };
 
-  const checkRealGps = async (): Promise<boolean> => {
-    try {
-      let perm = await Geolocation.checkPermissions();
-      if (perm.location === 'prompt' || perm.location === 'prompt-with-rationale') {
-        const req = await Geolocation.requestPermissions({ permissions: ['location'] });
-        perm = req;
-      }
-      if (perm.location === 'denied') return false;
-      await Geolocation.getCurrentPosition({ timeout: 8000, enableHighAccuracy: false });
-      return true;
-    } catch {
-      return false;
-    }
-  };
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsConnecting(true);
     setErrorMessage(null);
-
-    // Real GPS enforcement
-    const gpsOk = await checkRealGps();
-    if (!gpsOk) {
-      setErrorMessage('Location services are OFF or permission denied. Please enable GPS / Location on your device to log in.');
-      setIsConnecting(false);
-      return;
-    }
 
     try {
       // Simulate recaptcha token if needed
@@ -155,14 +131,6 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     setErrorMessage(null);
     setEmail(acc.email);
     setPassword(acc.pass);
-
-    // Real GPS enforcement
-    const gpsOk = await checkRealGps();
-    if (!gpsOk) {
-      setErrorMessage('Location services are OFF or permission denied. Please enable GPS / Location on your device to log in.');
-      setIsConnecting(false);
-      return;
-    }
 
     try {
       // Temporarily bypass live trigger if they select preset account to prevent sandbox lookup error
