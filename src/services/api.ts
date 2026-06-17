@@ -30,9 +30,10 @@ export interface ConnectionConfig {
 }
 
 // Initial fallback mock data, saved in localStorage so changes are sticky.
+const HAS_REAL_API = !!(import.meta.env.VITE_API_URL as string);
 const DEFAULT_CONFIG: ConnectionConfig = {
   baseUrl: (import.meta.env.VITE_API_URL as string) || `${typeof window !== 'undefined' ? window.location.origin : ''}/api`,
-  useLive: false,
+  useLive: HAS_REAL_API,
   recaptchaSiteKey: ''
 };
 
@@ -94,8 +95,7 @@ class ApiService {
     if (storedCfg) {
       try {
         const parsed = JSON.parse(storedCfg);
-        // Always use simulation mode — live backend credentials are managed separately
-        this.config = { ...parsed, useLive: false };
+        this.config = { ...parsed, useLive: HAS_REAL_API };
       } catch { this.config = DEFAULT_CONFIG; }
     } else {
       localStorage.setItem('evron_conn_cfg', JSON.stringify(DEFAULT_CONFIG));
@@ -1547,6 +1547,29 @@ class ApiService {
       wifiBypassedOrAirplaneMode: false,
       statusDetail: `Walk: ${((loc.walk_distance_m || 0) / 1000).toFixed(2)} km`
     }));
+  }
+
+  public async getLocationLogs(params: { user_id?: number; from?: string; to?: string } = {}): Promise<any[]> {
+    if (this.config.useLive) {
+      const p = new URLSearchParams();
+      if (params.user_id) p.set('user_id', String(params.user_id));
+      if (params.from) p.set('from', params.from);
+      if (params.to) p.set('to', params.to);
+      const res = await fetch(`${this.config.baseUrl}/location-logs?${p}`, { headers: this.getHeaders() });
+      if (!res.ok) throw new Error('Failed to fetch location logs');
+      return await res.json();
+    }
+    return [];
+  }
+
+  public getLocationLogsExportUrl(params: { user_id?: number; from?: string; to?: string } = {}): string {
+    const p = new URLSearchParams();
+    if (params.user_id) p.set('user_id', String(params.user_id));
+    if (params.from) p.set('from', params.from);
+    if (params.to) p.set('to', params.to);
+    const token = this.token || '';
+    p.set('token', token);
+    return `${this.config.baseUrl}/location-logs/export?${p}`;
   }
 
   // EXPENSES

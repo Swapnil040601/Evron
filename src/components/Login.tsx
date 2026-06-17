@@ -215,7 +215,8 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             )}
           </form>
 
-          {/* Quick login profiles */}
+          {/* Quick login profiles — simulation mode only */}
+          {!apiService.getConfig().useLive ? (
           <div className="space-y-3 pt-1">
             <div className="flex items-center gap-2">
               <div className="h-[1px] bg-zinc-900 flex-1" />
@@ -261,7 +262,16 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               })}
             </div>
           </div>
-
+          ) : (
+          <div className="space-y-2 pt-1">
+            <div className="flex items-center gap-2">
+              <div className="h-[1px] bg-zinc-900 flex-1" />
+              <span className="text-xs text-zinc-500">Sign in with your company account</span>
+              <div className="h-[1px] bg-zinc-900 flex-1" />
+            </div>
+            <p className="text-xs text-zinc-500 text-center">Use your <span className="text-zinc-300">@evronnetworks.com</span> email and password.</p>
+          </div>
+          )}
 
         </div>
       </div>

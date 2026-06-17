@@ -223,6 +223,19 @@ export default function Reports({ onSyncData, employees = [] }: ReportsProps) {
         downloadCsv(csv, `canteen_${label}.csv`);
         setExportSuccess(`Downloaded ${visits.length} canteen records.`);
 
+      } else if (selectedRepType === 'location') {
+        const logs = await apiService.getLocationLogs({ from, to });
+        const header = 'Employee,Code,Department,Event Type,Start Time,End Time,Duration (min),Latitude,Longitude,Wi-Fi SSID,Last App\n';
+        let csv = header;
+        logs.forEach((u: any) => {
+          (u.events || []).forEach((ev: any) => {
+            csv += `"${u.user_name}","${u.employee_code}","${u.department}","${ev.type}","${new Date(ev.start).toLocaleString()}","${new Date(ev.end).toLocaleString()}","${ev.duration_minutes}","${ev.lat}","${ev.lng}","${ev.wifi_ssid || ''}","${ev.last_app || ''}"\n`;
+          });
+        });
+        downloadCsv(csv, `location_logs_${label}.csv`);
+        const total = logs.reduce((s: number, u: any) => s + (u.events?.length || 0), 0);
+        setExportSuccess(`Downloaded location log with ${total} events across ${logs.length} employees.`);
+
       } else {
         setExportError('This report type is not available yet.');
       }
@@ -940,6 +953,7 @@ export default function Reports({ onSyncData, employees = [] }: ReportsProps) {
                   <option value="attendance">Attendance Report</option>
                   <option value="expenses">Expense Report</option>
                   <option value="canteen">Canteen Report</option>
+                  <option value="location">Location Logs Report</option>
                 </select>
               </div>
 

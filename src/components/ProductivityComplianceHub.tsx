@@ -24,7 +24,10 @@ import {
   Trash2,
   Lock,
   Compass,
-  Navigation
+  Navigation,
+  Clock,
+  MapPinned,
+  FilterX
 } from 'lucide-react';
 import { Geolocation } from '@capacitor/geolocation';
 import { Employee } from '../types';
@@ -40,7 +43,7 @@ const FORBIDDEN_APP_NAMES = ['whatsapp', 'instagram', 'clash', 'fakegps', 'vpn',
 
 export default function ProductivityComplianceHub({ employees, onTriggerAlert }: ProductivityComplianceHubProps) {
   // Navigation sub-tabs
-  const [activeSubTab, setActiveSubTab] = useState<'tracker' | 'ai_cameras' | 'excel_export' | 'gps_history'>('tracker');
+  const [activeSubTab, setActiveSubTab] = useState<'tracker' | 'ai_cameras' | 'excel_export' | 'gps_history' | 'location_logs'>('tracker');
   
   // Search parameters
   const [searchQuery, setSearchQuery] = useState('');
@@ -65,6 +68,24 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
 
   const [gpsLogs, setGpsLogs] = useState<any[]>([]);
   const [isLoadingGps, setIsLoadingGps] = useState<boolean>(true);
+
+  const [locationLogs, setLocationLogs] = useState<any[]>([]);
+  const [isLoadingLocationLogs, setIsLoadingLocationLogs] = useState(false);
+  const [locLogFrom, setLocLogFrom] = useState(() => new Date().toISOString().slice(0, 10));
+  const [locLogTo, setLocLogTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [locLogUserId, setLocLogUserId] = useState<string>('');
+
+  const fetchLocationLogs = async () => {
+    setIsLoadingLocationLogs(true);
+    try {
+      const params: { from?: string; to?: string; user_id?: number } = { from: locLogFrom, to: locLogTo };
+      if (locLogUserId) params.user_id = Number(locLogUserId);
+      const data = await apiService.getLocationLogs(params);
+      setLocationLogs(data);
+    } catch { setLocationLogs([]); }
+    setIsLoadingLocationLogs(false);
+  };
+
   const COMPANY_SSID = 'EVRON-SECURE-WIFI';
 
   const refreshLiveData = async () => {
@@ -760,6 +781,17 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
           >
             <Compass className="w-3.5 h-3.5" />
             Location History
+          </button>
+          <button
+            onClick={() => { setActiveSubTab('location_logs'); fetchLocationLogs(); }}
+            className={`px-3 py-1.5 text-xs font-mono font-bold uppercase transition rounded-md flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+              activeSubTab === 'location_logs'
+                ? 'bg-red-500 text-white'
+                : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            <MapPinned className="w-3.5 h-3.5" />
+            Location Logs
           </button>
         </div>
       </div>
@@ -1550,6 +1582,135 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
               </table>
             </div>
           </div>
+        </div>
+      )}
+
+      {activeSubTab === 'location_logs' && (
+        <div className="bg-zinc-900/40 border border-zinc-800 p-5 rounded-xl space-y-5" id="compliance-location-logs-subtab">
+          {/* Header + filters */}
+          <div className="flex flex-col gap-3 border-b border-zinc-800 pb-4">
+            <div>
+              <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                <MapPinned className="w-4 h-4 text-red-500" />
+                Employee Location Logs
+              </h2>
+              <p className="text-xs text-zinc-400 mt-0.5">Full movement history. Stays of 10+ minutes at one location are highlighted.</p>
+            </div>
+            <div className="flex flex-wrap gap-2 items-end">
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] text-zinc-500 font-mono uppercase">From</span>
+                <input type="date" value={locLogFrom} onChange={e => setLocLogFrom(e.target.value)}
+                  className="bg-zinc-900 border border-zinc-700 text-white text-xs rounded-lg px-2 py-1.5 font-mono" />
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] text-zinc-500 font-mono uppercase">To</span>
+                <input type="date" value={locLogTo} onChange={e => setLocLogTo(e.target.value)}
+                  className="bg-zinc-900 border border-zinc-700 text-white text-xs rounded-lg px-2 py-1.5 font-mono" />
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] text-zinc-500 font-mono uppercase">Employee</span>
+                <select value={locLogUserId} onChange={e => setLocLogUserId(e.target.value)}
+                  className="bg-zinc-900 border border-zinc-700 text-white text-xs rounded-lg px-2 py-1.5 font-mono">
+                  <option value="">All employees</option>
+                  {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                </select>
+              </div>
+              <button onClick={fetchLocationLogs}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white text-xs font-bold font-mono rounded-lg transition cursor-pointer">
+                <RefreshCw className={`w-3.5 h-3.5 ${isLoadingLocationLogs ? 'animate-spin' : ''}`} />
+                Load Logs
+              </button>
+              {locationLogs.length > 0 && (
+                <a href={apiService.getLocationLogsExportUrl({ from: locLogFrom, to: locLogTo, user_id: locLogUserId ? Number(locLogUserId) : undefined })}
+                  target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold font-mono rounded-lg transition cursor-pointer">
+                  <Download className="w-3.5 h-3.5" />
+                  Export CSV
+                </a>
+              )}
+            </div>
+          </div>
+
+          {isLoadingLocationLogs ? (
+            <div className="py-16 flex items-center justify-center gap-2 text-zinc-400 text-xs font-mono">
+              <RefreshCw className="w-5 h-5 animate-spin text-red-500" /> Loading location logs...
+            </div>
+          ) : locationLogs.length === 0 ? (
+            <div className="py-16 text-center border border-dashed border-zinc-800 rounded-lg text-zinc-500 text-xs font-mono">
+              No location data for the selected period. Make sure employees are using the mobile app with GPS enabled.
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {locationLogs.map(user => (
+                <div key={user.user_id} className="border border-zinc-800 rounded-xl overflow-hidden">
+                  {/* Employee header */}
+                  <div className="bg-zinc-900 px-4 py-3 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-bold text-red-400 shrink-0">
+                        {user.user_name?.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-white leading-none">{user.user_name}</p>
+                        <p className="text-xs text-zinc-400 mt-0.5">{user.employee_code} · {user.department}</p>
+                      </div>
+                    </div>
+                    <span className="text-xs font-mono text-zinc-400 shrink-0">{user.total_pings} pings</span>
+                  </div>
+
+                  {/* Events timeline */}
+                  {user.events.length === 0 ? (
+                    <p className="text-xs text-zinc-500 font-mono p-4">No movement events detected.</p>
+                  ) : (
+                    <div className="divide-y divide-zinc-800/60">
+                      {user.events.map((ev: any, i: number) => (
+                        <div key={i} className={`flex items-start gap-3 px-4 py-3 ${ev.type === 'stay' ? 'bg-amber-500/5' : ''}`}>
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+                            ev.type === 'stay' ? 'bg-amber-500/20' : 'bg-zinc-800'
+                          }`}>
+                            {ev.type === 'stay'
+                              ? <Clock className="w-4 h-4 text-amber-400" />
+                              : <Navigation className="w-4 h-4 text-zinc-400" />
+                            }
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`text-xs font-bold font-mono uppercase px-2 py-0.5 rounded ${
+                                ev.type === 'stay'
+                                  ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                                  : 'bg-zinc-800 text-zinc-400'
+                              }`}>
+                                {ev.type === 'stay' ? `Stay · ${ev.duration_minutes} min` : 'Moving'}
+                              </span>
+                              <span className="text-[10px] font-mono text-zinc-500">
+                                {new Date(ev.start).toLocaleTimeString()} → {new Date(ev.end).toLocaleTimeString()}
+                              </span>
+                            </div>
+                            <p className="text-xs text-zinc-300 mt-1 font-mono">
+                              {ev.lat.toFixed(5)}, {ev.lng.toFixed(5)}
+                            </p>
+                            {(ev.wifi_ssid || ev.last_app) && (
+                              <p className="text-[10px] text-zinc-500 mt-0.5">
+                                {ev.wifi_ssid && <span>Wi-Fi: {ev.wifi_ssid} · </span>}
+                                {ev.last_app && <span>App: {ev.last_app}</span>}
+                              </p>
+                            )}
+                            <a
+                              href={`https://maps.google.com/?q=${ev.lat},${ev.lng}`}
+                              target="_blank" rel="noopener noreferrer"
+                              className="text-[10px] text-red-400 hover:text-red-300 mt-0.5 inline-block font-mono underline underline-offset-2"
+                            >
+                              View on Google Maps
+                            </a>
+                          </div>
+                          <span className="text-[10px] font-mono text-zinc-600 shrink-0">{ev.ping_count}p</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
