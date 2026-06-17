@@ -42,6 +42,9 @@ interface LiveMapProps {
   selfMode?: boolean;
   height?: string;
   onMapClick?: (lat: number, lng: number) => void;
+  /** Admin's own real-time GPS — shows a green "You" marker separate from employees */
+  selfLat?: number;
+  selfLng?: number;
 }
 
 function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number) => void }) {
@@ -90,6 +93,8 @@ export default function LiveMap({
   selfMode = false,
   height = '300px',
   onMapClick,
+  selfLat,
+  selfLng,
 }: LiveMapProps) {
   // Geofence circle center: use explicit geofence coords if provided,
   // otherwise fall back to map centre (admin view default)
@@ -131,6 +136,17 @@ export default function LiveMap({
               dashArray: '6 4',
             }}
           />
+        )}
+
+        {/* Admin's own real-time GPS pin — shown when selfLat/selfLng provided */}
+        {!selfMode && selfLat !== undefined && selfLng !== undefined && (
+          <Marker position={[selfLat, selfLng]} icon={selfIcon}>
+            <Popup>
+              <strong>You (Admin)</strong><br />
+              {selfLat.toFixed(5)}, {selfLng.toFixed(5)}<br />
+              <span style={{ color: '#22c55e', fontSize: 11 }}>Live GPS</span>
+            </Popup>
+          </Marker>
         )}
 
         {selfMode ? (

@@ -111,6 +111,9 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
   const [isDefiningGeofence, setIsDefiningGeofence] = useState<boolean>(false);
   const [isLocating, setIsLocating] = useState<boolean>(false);
   const [notifiedBreaches, setNotifiedBreaches] = useState<Record<string, 'inside' | 'outside'>>({});
+  // Real-time admin GPS position (separate from geofence center)
+  const [selfPos, setSelfPos] = useState<{ lat: number; lng: number } | null>(null);
+  const watchIdRef = useRef<string | null>(null);
 
   const geofenceCenterRef = useRef(geofenceCenter);
   const geofenceRadiusRef = useRef(geofenceRadius);
@@ -126,8 +129,17 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
   const locateDevice = async () => {
     setIsLocating(true);
     try {
+      // Request permission first — critical on Android
+      let perm = await Geolocation.checkPermissions();
+      if (perm.location === 'prompt' || perm.location === 'prompt-with-rationale') {
+        const req = await Geolocation.requestPermissions({ permissions: ['location'] });
+        perm = req;
+      }
+      if (perm.location === 'denied') return;
+
       const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
       const newCenter = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      setSelfPos(newCenter);
       setGeofenceCenter(newCenter);
       runImmediateGeofenceCheckAll(newCenter, geofenceRadiusRef.current);
     } catch (err) {
@@ -137,9 +149,52 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
     }
   };
 
-  // Fetch real device GPS on mount
+  // Start GPS on mount: request permission, get initial fix, then watch continuously
   useEffect(() => {
-    locateDevice();
+    let cancelled = false;
+
+    const startGps = async () => {
+      try {
+        let perm = await Geolocation.checkPermissions();
+        if (perm.location === 'prompt' || perm.location === 'prompt-with-rationale') {
+          const req = await Geolocation.requestPermissions({ permissions: ['location'] });
+          perm = req;
+        }
+        if (perm.location === 'denied' || cancelled) return;
+
+        // Initial one-shot for fast first paint
+        try {
+          const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
+          if (!cancelled) {
+            const pt = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            setSelfPos(pt);
+            setGeofenceCenter(pt);
+            runImmediateGeofenceCheckAll(pt, geofenceRadiusRef.current);
+          }
+        } catch {}
+
+        // Continuous watch — selfPos updates in real-time, geofenceCenter stays fixed
+        watchIdRef.current = await Geolocation.watchPosition(
+          { enableHighAccuracy: true },
+          (position, err) => {
+            if (cancelled || err || !position) return;
+            setSelfPos({ lat: position.coords.latitude, lng: position.coords.longitude });
+          }
+        );
+      } catch (err) {
+        console.warn('GPS init failed:', err);
+      }
+    };
+
+    startGps();
+
+    return () => {
+      cancelled = true;
+      if (watchIdRef.current !== null) {
+        Geolocation.clearWatch({ id: watchIdRef.current });
+        watchIdRef.current = null;
+      }
+    };
   }, []);
 
   const getDistanceInMeters = (lat1: number, lng1: number, lat2: number, lng2: number) => {
@@ -845,12 +900,14 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
 
               {/* Real Leaflet map with employee GPS pins */}
               <LiveMap
-                centerLat={geofenceCenter.lat || 0}
-                centerLng={geofenceCenter.lng || 0}
-                zoom={geofenceCenter.lat ? 15 : 2}
+                centerLat={selfPos?.lat ?? geofenceCenter.lat ?? 0}
+                centerLng={selfPos?.lng ?? geofenceCenter.lng ?? 0}
+                zoom={(selfPos?.lat || geofenceCenter.lat) ? 15 : 2}
                 geofenceRadius={geofenceRadius}
                 height="360px"
                 onMapClick={isDefiningGeofence ? handleMapClick : undefined}
+                selfLat={selfPos?.lat}
+                selfLng={selfPos?.lng}
                 employees={employees.map(emp => {
                   const st = employeeStates[emp.id];
                   const lat = st?.activeLat ?? geofenceCenter.lat;
