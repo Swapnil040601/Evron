@@ -161,35 +161,13 @@ export default function App() {
 
   const checkActiveSession = async () => {
     setIsAuthLoading(true);
-
-    const withTimeout = <T,>(promise: Promise<T>, ms: number): Promise<T> =>
-      Promise.race([
-        promise,
-        new Promise<T>((_, reject) =>
-          setTimeout(() => reject(new Error('timeout')), ms)
-        ),
-      ]);
-
     try {
-      let token = apiService.getToken();
-      if (!token) {
-        try {
-          const res = await withTimeout(
-            apiService.login('admin@evronnetworks.com', 'Admin@123'),
-            8000
-          );
-          token = res.token;
-        } catch (e) {
-          console.warn('Startup login fallback unsuccessful:', e);
-        }
-      }
-
+      const token = apiService.getToken();
       if (token) {
-        const profile = await withTimeout(apiService.getProfile(), 8000);
+        const profile = await apiService.getProfile();
         setCurrentUser(profile);
       }
-    } catch (err) {
-      console.warn('Recovered auth error: state cleared.');
+    } catch {
       apiService.logout();
       setCurrentUser(null);
     } finally {

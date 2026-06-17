@@ -165,7 +165,7 @@ class ApiService {
         body: JSON.stringify({ email, password: pass, recaptcha_token: recaptchaToken })
       });
       if (!response.ok) {
-        throw new Error('Authentication Rejected. Invalid credentials or reCAPTCHA failure.');
+        throw new Error('Wrong email or password. Please try again.');
       }
       const data = await response.json();
       this.setToken(data.token);
@@ -178,7 +178,7 @@ class ApiService {
     // SIMULATION LOGIN
     const match = SIMULATOR_ACCOUNTS.find(acc => acc.email.toLowerCase() === email.toLowerCase() && acc.pass === pass);
     if (!match) {
-      throw new Error('Authentication Rejected (Simulated): Invalid username or passphrase.');
+      throw new Error('Wrong email or password. Please try again.');
     }
 
     const mockToken = `mock-jwt-token-for-${match.role}-${Date.now()}`;
