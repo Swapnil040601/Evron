@@ -43,7 +43,7 @@ const FORBIDDEN_APP_NAMES = ['whatsapp', 'instagram', 'clash', 'fakegps', 'vpn',
 
 export default function ProductivityComplianceHub({ employees, onTriggerAlert }: ProductivityComplianceHubProps) {
   // Navigation sub-tabs
-  const [activeSubTab, setActiveSubTab] = useState<'tracker' | 'ai_cameras' | 'excel_export' | 'gps_history' | 'location_logs'>('tracker');
+  const [activeSubTab, setActiveSubTab] = useState<'tracker' | 'excel_export' | 'gps_history' | 'location_logs'>('tracker');
   
   // Search parameters
   const [searchQuery, setSearchQuery] = useState('');
@@ -231,7 +231,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
     setIsDefiningGeofence(false);
     triggerOuterSystemAlert(
       `Administrating Geofence: Custom circular perimeter center updated to [${lat.toFixed(5)}, ${lng.toFixed(5)}].`,
-      "PERIMETER CONTROL ROOM",
+      "Geofence",
       "info"
     );
     runImmediateGeofenceCheckAll(newCenter, geofenceRadius);
@@ -261,7 +261,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
       
       const msg = `[GEOFENCE VIOLATION] Worker ${emp.name} (${empId}) crossed the secure geofence zone! Present Location: [${activeLat.toFixed(5)}, ${activeLng.toFixed(5)}], Distance is ${(distance).toFixed(0)}m (Max Limit configured: ${radius}m).`;
       
-      triggerOuterSystemAlert(msg, "GEOFENCE RADAR CHASSIS", "critical");
+      triggerOuterSystemAlert(msg, "Geofence", "critical");
 
       if (addCctvAlert) {
         const timestamp = new Date().toLocaleTimeString();
@@ -272,8 +272,8 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
             {
               id: alertId,
               timestamp,
-              camera: '🛰️ Watchtower Geofence Satellite Radar',
-              type: 'Boundary Perimeter Breach',
+              camera: 'Geofence Alert',
+              type: 'Left safe zone',
               detail: msg,
               severity: 'critical',
               subject: `${emp.name} (${empId})`,
@@ -286,7 +286,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
 
       return {
         securityAlertCount: (currentStates[empId]?.securityAlertCount || 0) + 1,
-        statusDetail: `GEOFENCE BREACH: Worker found outside the allowed perimeter bounds (${distance.toFixed(0)}m away).`
+        statusDetail: `Outside safe zone —${distance.toFixed(0)}m away).`
       };
 
     } else if (!isCurrentlyOutside && cachedState === 'outside') {
@@ -294,7 +294,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
       setNotifiedBreaches(prev => ({ ...prev, [empId]: 'inside' }));
       
       const msg = `[GEOFENCE SECURED] Worker ${emp.name} (${empId}) returned inside the secure geofence boundaries.`;
-      triggerOuterSystemAlert(msg, "GEOFENCE RADAR CHASSIS", "info");
+      triggerOuterSystemAlert(msg, "Geofence", "info");
 
       if (addCctvAlert) {
         const timestamp = new Date().toLocaleTimeString();
@@ -305,8 +305,8 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
             {
               id: alertId,
               timestamp,
-              camera: '🛰️ Watchtower Geofence Satellite Radar',
-              type: 'Perimeter Boundary Cleared',
+              camera: 'Geofence Alert',
+              type: 'Returned to safe zone',
               detail: msg,
               severity: 'info',
               subject: `${emp.name} (${empId})`,
@@ -342,7 +342,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
         if (isCurrentlyOutside && cachedState !== 'outside') {
           setNotifiedBreaches(p => ({ ...p, [empId]: 'outside' }));
           const msg = `[GEOFENCE VIOLATION] Worker ${emp.name} (${empId}) crossed the secure geofence zone! Present Location: [${stateObj.activeLat.toFixed(5)}, ${stateObj.activeLng.toFixed(5)}], Distance is ${(distance).toFixed(0)}m (Max Limit configured: ${radius}m).`;
-          triggerOuterSystemAlert(msg, "GEOFENCE RADAR CHASSIS", "critical");
+          triggerOuterSystemAlert(msg, "Geofence", "critical");
 
           const timestamp = new Date().toLocaleTimeString();
           setCameraAlertsList(cPrev => {
@@ -352,8 +352,8 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
               {
                 id: alertId,
                 timestamp,
-                camera: '🛰️ Watchtower Geofence Satellite Radar',
-                type: 'Boundary Perimeter Breach',
+                camera: 'Geofence Alert',
+                type: 'Left safe zone',
                 detail: msg,
                 severity: 'critical',
                 subject: `${emp.name} (${empId})`,
@@ -366,14 +366,14 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
           next[empId] = {
             ...stateObj,
             securityAlertCount: stateObj.securityAlertCount + 1,
-            statusDetail: `GEOFENCE BREACH: Worker found outside the allowed perimeter bounds (${distance.toFixed(0)}m away).`
+            statusDetail: `Outside safe zone —${distance.toFixed(0)}m away).`
           };
           changed = true;
 
         } else if (!isCurrentlyOutside && cachedState === 'outside') {
           setNotifiedBreaches(p => ({ ...p, [empId]: 'inside' }));
           const msg = `[GEOFENCE SECURED] Worker ${emp.name} (${empId}) returned inside the secure geofence boundaries.`;
-          triggerOuterSystemAlert(msg, "GEOFENCE RADAR CHASSIS", "info");
+          triggerOuterSystemAlert(msg, "Geofence", "info");
 
           const timestamp = new Date().toLocaleTimeString();
           setCameraAlertsList(cPrev => {
@@ -383,8 +383,8 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
               {
                 id: alertId,
                 timestamp,
-                camera: '🛰️ Watchtower Geofence Satellite Radar',
-                type: 'Perimeter Boundary Cleared',
+                camera: 'Geofence Alert',
+                type: 'Returned to safe zone',
                 detail: msg,
                 severity: 'info',
                 subject: `${emp.name} (${empId})`,
@@ -591,7 +591,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
       if (isNewDevMode) {
         triggerOuterSystemAlert(
           `[CRITICAL BREACH] ${emp.name} turned on Android Developer Options & USB Debugging. The Evron Watchtower client has automatically lockdown-blocked startup to secure device parameters. App cannot be turned on!`,
-          "SECURITY ATTESTATION STACK",
+          "Security",
           "critical"
         );
       }
@@ -623,7 +623,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
       if (isNewEvasion) {
         triggerOuterSystemAlert(
           `[OFFLINE EVASION ALERT] ${emp.name} cut cellular internet or put phone in Airplane Mode to escape monitoring, but local corporate Wi-Fi beacons remain reachable on their device. Dodging call and escaping surveillance verified!`,
-          "ESCORT CELLULAR SENTINEL",
+          "Network",
           "critical"
         );
       }
@@ -747,17 +747,6 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
             Location & App
           </button>
           <button
-            onClick={() => setActiveSubTab('ai_cameras')}
-            className={`px-3 py-1.5 text-xs font-mono font-bold uppercase transition rounded-md flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
-              activeSubTab === 'ai_cameras'
-                ? 'bg-red-500 text-white'
-                : 'text-zinc-400 hover:text-white'
-            }`}
-          >
-            <CameraIcon className="w-3.5 h-3.5 animate-pulse" />
-            Camera Feed
-          </button>
-          <button
             onClick={() => setActiveSubTab('excel_export')}
             className={`px-3 py-1.5 text-xs font-mono font-bold uppercase transition rounded-md flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
               activeSubTab === 'excel_export'
@@ -863,12 +852,12 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
                             <span className="text-[9px] text-zinc-500 font-mono uppercase">{emp.id}</span>
                             {stateObj.isDeveloperModeOn && (
                               <span className="text-[7.5px] bg-red-950/60 text-red-400 border border-red-900/55 px-1 rounded font-mono font-bold font-semibold uppercase animate-pulse">
-                                Dev Blkd
+                                Dev Mode
                               </span>
                             )}
                             {stateObj.wifiBypassedOrAirplaneMode && (
                               <span className="text-[7.5px] bg-amber-950/60 text-amber-400 border border-amber-900/55 px-1 rounded font-mono font-bold font-semibold uppercase">
-                                Offline Evsd
+                                Offline
                               </span>
                             )}
                             {(stateObj as any).otherAppOpens > 0 && (
@@ -920,10 +909,10 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
               <div className="p-3 bg-zinc-900 border-b border-zinc-800/80 flex items-center justify-between font-mono text-[10px] text-zinc-400 gap-2">
                 <span className="flex items-center gap-1.5 font-bold uppercase text-red-500 animate-pulse">
                   <Activity className="w-3.5 h-3.5 text-red-500" />
-                  Live GPS Geofence Mapping Node // Active: {selectedEmployeeObj?.name || '—'}
+                  Live Map — {selectedEmployeeObj?.name || '—'}
                 </span>
                 <div className="flex items-center gap-2 shrink-0">
-                  <span>Geofence Radar: <strong className="text-white">{geofenceRadius}m</strong></span>
+                  <span>Zone radius: <strong className="text-white">{geofenceRadius}m</strong></span>
                   <button
                     onClick={locateDevice}
                     disabled={isLocating}
@@ -968,10 +957,10 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
                   <div className="space-y-1">
                     <h4 className="text-[10px] font-bold font-mono text-zinc-200 uppercase tracking-widest flex items-center gap-1.5">
                       <Lock className="w-3.5 h-3.5 text-red-500" />
-                      Geofence Boundary Controller Admin Panel
+                      Safe Zone Settings
                     </h4>
                     <p className="text-[9px] text-zinc-500">
-                      Configure circular zones and test worker boundary crosses via direct visual simulation.
+                      Set a boundary area on the map. You will get an alert when an employee leaves it.
                     </p>
                   </div>
                   
@@ -987,7 +976,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
                     }`}
                   >
                     <MapIcon className="w-3.5 h-3.5 text-red-500" />
-                    {isDefiningGeofence ? 'Cancel Defining' : '🎯 Click Map to Plot Center'}
+                    {isDefiningGeofence ? 'Cancel' : '🎯 Set Center on Map'}
                   </button>
                 </div>
 
@@ -997,7 +986,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
                     {/* Radius Slider Tool */}
                     <div className="bg-zinc-950 p-3 rounded-lg border border-zinc-900 space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-[8px] font-mono text-zinc-500 uppercase font-black">Configure Fence Limit Radius</span>
+                        <span className="text-[8px] font-mono text-zinc-500 uppercase font-black">Boundary Radius</span>
                         <strong className="text-xs font-mono text-white">{geofenceRadius} meters</strong>
                       </div>
                       <input 
@@ -1011,7 +1000,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
                           setGeofenceRadius(val);
                           triggerOuterSystemAlert(
                             `Administrating Geofence: Limit radius threshold updated to ${val} meters.`,
-                            "PERIMETER CONTROL ROOM",
+                            "Geofence",
                             "info"
                           );
                           runImmediateGeofenceCheckAll(geofenceCenter, val);
@@ -1040,7 +1029,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
                   {/* Right Column Core Stress Simulating Teleporters */}
                   <div className="space-y-3">
                     <div className="p-3 bg-zinc-950 border border-zinc-900 rounded-lg space-y-2">
-                      <span className="text-[8px] font-mono text-zinc-500 uppercase font-black block">Active Worker Simulation Controller</span>
+                      <span className="text-[8px] font-mono text-zinc-500 uppercase font-black block">Test Alerts</span>
                       
                       {(() => {
                         const dist = getDistanceInMeters(
@@ -1054,20 +1043,20 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
                         return (
                           <div className="space-y-2">
                             <div className="flex items-center justify-between text-[11px] font-mono">
-                              <span className="text-zinc-400">Node Distance:</span>
+                              <span className="text-zinc-400">Distance:</span>
                               <strong className={`font-mono ${isBreached ? 'text-amber-400 font-bold' : 'text-emerald-400 font-semibold'}`}>
                                 {dist.toFixed(0)}m / {geofenceRadius}m limit
                               </strong>
                             </div>
 
                             <div className="flex justify-between text-[10px] font-mono">
-                              <span className="text-zinc-500">Boundary State:</span>
+                              <span className="text-zinc-500">Status:</span>
                               <span className={`font-mono uppercase font-black text-[9px] px-1 rounded ${
                                 isBreached 
                                   ? 'text-amber-400 bg-amber-500/10 border border-amber-500/20 animate-pulse' 
                                   : 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20'
                               }`}>
-                                {isBreached ? '🚨 Outside Allowed Boundary' : '🟢 Inside Secure Boundary'}
+                                {isBreached ? '🚨 Outside zone' : '🟢 Inside zone'}
                               </span>
                             </div>
 
@@ -1103,7 +1092,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
                                 }}
                                 className="px-2 py-1.5 bg-zinc-900 border border-zinc-800 hover:border-amber-500/50 text-amber-500 hover:text-white transition rounded text-[9px] font-mono uppercase font-bold cursor-pointer animate-none"
                               >
-                                Sim Boundary Exit
+                                Simulate Exit
                               </button>
 
                               <button
@@ -1136,7 +1125,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
                                 }}
                                 className="px-2 py-1.5 bg-zinc-900 border border-zinc-800 hover:border-emerald-500/50 text-emerald-400 hover:text-white transition rounded text-[9px] font-mono uppercase font-bold cursor-pointer"
                               >
-                                Teleport to HQ Center
+                                Simulate Return
                               </button>
                             </div>
                           </div>
@@ -1150,43 +1139,40 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
 
             {/* 2. MDM Mobile App Guards / WIFI Logs Panel */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* MDM Blocklist & Developer Options Lockout */}
+              {/* Phone Security */}
               <div className="bg-zinc-900/40 border border-zinc-800 p-4 rounded-xl space-y-3">
                 <div className="flex items-center gap-2 border-b border-zinc-800 pb-2 justify-between">
                   <div className="flex items-center gap-2">
                     <Smartphone className="w-4 h-4 text-rose-500" />
-                    <h3 className="text-xs font-bold font-mono text-white uppercase tracking-wider">MDM & Developer Guard</h3>
+                    <h3 className="text-xs font-bold font-mono text-white uppercase tracking-wider">Phone Security</h3>
                   </div>
-                  <span className="text-[8px] bg-red-950 font-mono text-red-400 border border-red-900/40 px-1 py-0.2 rounded font-bold uppercase">
-                    Anti-Attestation v2
-                  </span>
                 </div>
 
                 <div className="space-y-3">
                   {/* APP LOCKOUT STATE INDICATOR */}
                   <div className="p-3 bg-zinc-950 border border-zinc-850 rounded-lg space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-[9px] text-zinc-500 font-mono uppercase block">Attestation Status</span>
+                      <span className="text-[9px] text-zinc-500 font-mono uppercase block">App Status</span>
                       {selectedEmpState.isDeveloperModeOn ? (
                         <span className="bg-red-500/10 text-red-400 border border-red-500/30 text-[9px] font-mono px-2 py-0.5 rounded font-bold uppercase animate-pulse flex items-center gap-1">
                           <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                          🚫 APP STARTUP LOCKED
+                          🚫 App Blocked
                         </span>
                       ) : (
                         <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[9px] font-mono px-2 py-0.5 rounded font-bold uppercase flex items-center gap-1">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                          🟢 ACTIVE / MONITORED
+                          🟢 Active
                         </span>
                       )}
                     </div>
 
                     {selectedEmpState.isDeveloperModeOn ? (
                       <div className="bg-red-950/20 border border-red-900/20 p-2.5 rounded text-[10px] leading-relaxed text-red-400 font-sans">
-                        <strong>Developer Mode Detected!</strong> This device has USB Debugging or Developer Options enabled. The Evron app has been blocked from starting on this device. Contact your admin.
+                        <strong>Developer mode is on.</strong> The app has been blocked on this device. Please contact your admin.
                       </div>
                     ) : (
                       <div className="bg-emerald-950/20 border border-emerald-900/20 p-2.5 rounded text-[10px] leading-relaxed text-zinc-400 font-sans">
-                        Device is secure. Developer Options are disabled and location tracking is active.
+                        Device is secure. App is running and tracking normally.
                       </div>
                     )}
                   </div>
@@ -1194,7 +1180,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
                   {/* Other app opens count */}
                   <div className="p-3 bg-zinc-950 border border-zinc-850 rounded-lg space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-[9px] text-zinc-550 font-mono uppercase block">OTHER APPS OPENED TODAY</span>
+                      <span className="text-[9px] text-zinc-550 font-mono uppercase block">Other Apps Used Today</span>
                       <span className={`text-sm font-bold font-mono ${
                         (selectedEmpState as any).otherAppOpens > 10
                           ? 'text-red-400'
@@ -1234,61 +1220,58 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
                 </div>
               </div>
 
-              {/* Wi-Fi SSID & Airplane Evasion Detection Sentinel */}
+              {/* Network & Wi-Fi */}
               <div className="bg-zinc-900/40 border border-zinc-800 p-4 rounded-xl space-y-3">
                 <div className="flex items-center gap-2 border-b border-zinc-800 pb-2 justify-between">
                   <div className="flex items-center gap-2">
                     <Wifi className="w-4 h-4 text-emerald-400" />
-                    <h3 className="text-xs font-bold font-mono text-white uppercase tracking-wider">Wi-Fi & Airplane Evasion Sentinel</h3>
+                    <h3 className="text-xs font-bold font-mono text-white uppercase tracking-wider">Network & Wi-Fi</h3>
                   </div>
-                  <span className="text-[8px] bg-emerald-950 font-mono text-emerald-400 border border-emerald-900/40 px-1 py-0.2 rounded font-bold uppercase">
-                    WiFi Radar v1.5
-                  </span>
                 </div>
 
                 <div className="space-y-3">
                   {/* EVASION DETECTION BANNER */}
                   <div className="p-3 bg-zinc-950 border border-zinc-850 rounded-lg space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-[9px] text-zinc-550 font-mono uppercase block">Surveillance Status</span>
+                      <span className="text-[9px] text-zinc-550 font-mono uppercase block">Connection Status</span>
                       {selectedEmpState.wifiBypassedOrAirplaneMode ? (
                         <span className="bg-red-550 border border-red-550 text-white text-[8px] font-mono px-2 py-0.5 rounded font-black uppercase animate-bounce flex items-center gap-1">
-                          🚨 DODGING MONITORING
+                          🚨 Offline / Airplane Mode
                         </span>
                       ) : (
                         <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[9px] font-mono px-2 py-0.5 rounded font-bold uppercase flex items-center gap-1">
-                          🟢 SIGNAL SECURED
+                          🟢 Connected
                         </span>
                       )}
                     </div>
 
                     {selectedEmpState.wifiBypassedOrAirplaneMode ? (
                       <div className="bg-red-950/30 border border-red-500/30 p-2.5 rounded text-[10px] leading-relaxed text-amber-300 font-sans">
-                        <strong className="text-red-400 uppercase tracking-wide block mb-0.5 font-mono text-[9px]">⚠️ TRIPWIRE TRIP: EVASION VERIFIED</strong>
-                        Worker has abruptly cut cellular network or enabled **Airplane Mode** to hide their GPS coordinates. However, corporate routers confirm their <strong>device is STILL currently logged into WiFi SSID EVRON-SECURE-WIFI</strong> in the facility range. Dodging monitoring has been securely flagged!
+                        <strong className="text-red-400 block mb-0.5">⚠️ Offline or Airplane Mode detected.</strong>
+                        Employee turned off mobile data or enabled Airplane Mode. They are still connected to the office Wi-Fi, which means they are physically present but hiding their GPS.
                       </div>
                     ) : (
                       <div className="bg-emerald-950/20 border border-emerald-900/20 p-2.5 rounded text-[10px] leading-relaxed text-zinc-450 font-sans">
-                        No internet evasion signals found. General ping/acknowledgement sequence aligns with normal network data bands.
+                        Network is active and tracking normally.
                       </div>
                     )}
                   </div>
 
                   <div className="p-3 bg-zinc-950 border border-zinc-850 rounded-lg flex items-center justify-between">
                     <div>
-                      <span className="text-[9px] text-zinc-500 font-mono uppercase block">WIFI SSID / CARRIER GATEWAY</span>
+                      <span className="text-[9px] text-zinc-500 font-mono uppercase block">Wi-Fi Network</span>
                       <strong className={`text-xs font-mono ${selectedEmpState.wifiBypassedOrAirplaneMode ? 'text-amber-400 animate-pulse' : 'text-emerald-400'}`}>
-                        {selectedEmpState.wifiBypassedOrAirplaneMode ? 'EVRON-SECURE-WIFI (Local Evasion Hook)' : selectedEmpState.wifiSsid}
+                        {selectedEmpState.wifiBypassedOrAirplaneMode ? 'EVRON-SECURE-WIFI (offline detected)' : selectedEmpState.wifiSsid}
                       </strong>
                     </div>
 
                     {selectedEmpState.wifiBypassedOrAirplaneMode ? (
                       <span className="bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[9px] font-mono px-2 py-0.5 rounded font-bold uppercase">
-                        🚨 COLD HEARTBEAT
+                        🚨 No internet
                       </span>
                     ) : (
                       <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[9px] font-mono px-2 py-0.5 rounded font-bold uppercase">
-                        ✅ CONNECTED
+                        ✅ Connected
                       </span>
                     )}
                   </div>
@@ -1300,9 +1283,9 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
             <div className="bg-zinc-950 border border-zinc-850 p-4 rounded-xl flex items-center gap-3">
               <CheckCircle className="w-5 h-5 text-emerald-500 font-semibold" />
               <div>
-                <h4 className="text-xs font-bold text-white uppercase font-sans">Patrol Details: {selectedEmployeeObj?.name}</h4>
+                <h4 className="text-xs font-bold text-white uppercase font-sans">{selectedEmployeeObj?.name}</h4>
                 <p className="text-[10px] text-zinc-400 font-mono mt-0.5">
-                  {selectedEmpState.statusDetail} (Cumulative Roster Alerts: <strong className="text-red-400">{selectedEmpState.securityAlertCount}</strong>)
+                  {selectedEmpState.statusDetail} · Total alerts: <strong className="text-red-400">{selectedEmpState.securityAlertCount}</strong>
                 </p>
               </div>
             </div>
@@ -1310,77 +1293,6 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
         </div>
       )}
 
-      {activeSubTab === 'ai_cameras' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6" id="ai-cameras-workspace-frame">
-          {/* Main Full-Width Panel: Incident monitor logs and active watch */}
-          <div className="lg:col-span-12 bg-zinc-900/40 border border-zinc-800 p-5 rounded-xl flex flex-col justify-between" id="surveillance-logs-checklist">
-            <div>
-              <div className="flex items-center justify-between border-b border-zinc-800 pb-2 mb-4">
-                <span className="text-xs font-bold font-mono text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
-                  <Eye className="w-4 h-4 text-red-500" />
-                  Camera Event Logs
-                </span>
-                <span className="text-[9px] text-red-500 font-mono font-bold animate-pulse">● LIVE INTERIM CLOCK</span>
-              </div>
-
-              <div className="space-y-3.5 max-h-[460px] overflow-y-auto pr-1" id="live-camera-violation-threads">
-                {cameraAlertsList.map(item => (
-                  <div 
-                    key={item.id} 
-                    className={`p-3 rounded-lg border transition duration-150 relative ${
-                      item.isCleared 
-                        ? 'bg-zinc-950/20 border-zinc-900 opacity-50' 
-                        : item.severity === 'critical'
-                          ? 'bg-red-550/5 border-red-550/40'
-                          : 'bg-amber-500/5 border-amber-500/20'
-                    }`}
-                  >
-                    {/* Timestamp bubble */}
-                    <span className="absolute right-3 top-3 text-[9px] font-mono text-zinc-500 font-semibold bg-zinc-950 px-2 py-0.5 rounded border border-zinc-850">
-                      {item.timestamp}
-                    </span>
-
-                    <div className="flex flex-col gap-0.5">
-                      <span className={`text-[10px] font-mono font-bold uppercase tracking-wider ${
-                        item.isCleared ? 'text-zinc-500' : item.severity === 'critical' ? 'text-red-500' : 'text-amber-500'
-                      }`}>
-                        {item.type} {item.isCleared && '(CLEARED)'}
-                      </span>
-                      <span className="text-[9px] text-zinc-400 font-mono">
-                        Node: <strong className="text-white font-mono">{item.camera}</strong> · Subject: <strong className="text-white">{item.subject}</strong>
-                      </span>
-                    </div>
-
-                    <p className="text-xs text-zinc-300 mt-2 leading-relaxed font-sans">{item.detail}</p>
-                    
-                    {!item.isCleared && (
-                      <div className="mt-3 flex justify-end">
-                        <button
-                          onClick={() => handleClearAlert(item.id)}
-                          className="px-2.5 py-1 bg-zinc-950 border border-zinc-800 text-[8px] font-mono hover:text-white rounded hover:bg-zinc-900 cursor-pointer uppercase transition"
-                        >
-                          Clear alert signal
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-
-                {cameraAlertsList.length === 0 && (
-                  <div className="py-20 text-center font-mono text-zinc-500 text-xs">
-                    No camera warnings logged today. System secure.
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="p-3 bg-zinc-950 border border-zinc-850/60 rounded-lg text-[10px] font-mono text-zinc-500 flex items-center gap-1.5 mt-4">
-              <Sparkles className="w-4 h-4 text-red-500 shrink-0" />
-              <span>CCTV system detects uniforms via deep neural mesh model and logs all breaches.</span>
-            </div>
-          </div>
-        </div>
-      )}
 
       {activeSubTab === 'gps_history' && (
         <div className="bg-zinc-900/40 border border-zinc-800 p-5 rounded-xl space-y-6" id="compliance-gps-history-subtab">
@@ -1388,7 +1300,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
             <div>
               <h2 className="text-sm font-bold font-sans text-white uppercase tracking-wider flex items-center gap-2">
                 <Compass className="w-5 h-5 text-red-500 animate-pulse" />
-                Live Database GPS Log Stream & Telemetry
+                GPS Location History
               </h2>
               <p className="text-xs text-zinc-400 font-sans mt-0.5">
                 Location history recorded from staff devices during check-in and check-out.
@@ -1410,7 +1322,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <span className="text-[10px] text-zinc-500 font-bold font-mono uppercase block">
-                Logged Coordinate Layers ({gpsLogs.length} Records)
+                Location records ({gpsLogs.length})
               </span>
               <span className="text-[9px] font-mono text-zinc-400">
                 Data Backend Source: <strong className="text-emerald-400">JSON DB Endpoints Connected</strong>
@@ -1420,7 +1332,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
             {isLoadingGps ? (
               <div className="py-20 text-center font-mono text-zinc-500 text-xs animate-pulse flex flex-col items-center justify-center gap-2">
                 <RefreshCw className="w-6 h-6 text-red-500 animate-spin" />
-                Querying Cloud Run Microservice Database Layers...
+                Loading...
               </div>
             ) : gpsLogs.length === 0 ? (
               <div className="py-20 text-center font-mono border border-dashed border-zinc-800 rounded-lg text-zinc-500 text-xs bg-zinc-950/40">
@@ -1497,8 +1409,8 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
         <div className="bg-zinc-900/40 border border-zinc-800 p-5 rounded-xl space-y-6" id="compliance-reports-excel-subtab">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-800 pb-4">
             <div>
-              <h2 className="text-sm font-bold font-sans text-white">Full Personnel Productivity & Active Ledger</h2>
-              <p className="text-xs text-zinc-400 font-sans mt-0.5">Download CSV of the active personnel roster with location status, security counts, and duty logs.</p>
+              <h2 className="text-sm font-bold font-sans text-white">Employee Activity Export</h2>
+              <p className="text-xs text-zinc-400 font-sans mt-0.5">Download a CSV of all employees with attendance, location status, and security info.</p>
             </div>
             
             <button
@@ -1506,7 +1418,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
               className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 hover:shadow-emerald-500/20 shadow-md text-white font-bold font-mono text-xs rounded-lg transition flex items-center gap-1.5 cursor-pointer"
             >
               <Download className="w-4 h-4" />
-              DOWNLOAD PERSONNEL CSV SHEET
+              Download CSV
             </button>
           </div>
 
