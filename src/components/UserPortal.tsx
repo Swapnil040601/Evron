@@ -194,6 +194,7 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
           walk_distance_m: Math.round(walkDistRef.current),
           other_app_opens: deviceInfo.otherAppOpens,
           app_opens_detail: deviceInfo.appOpensDetail,
+          device_id: deviceInfo.deviceId,
         });
       } catch {}
     };

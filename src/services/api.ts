@@ -1459,6 +1459,7 @@ class ApiService {
     walk_distance_m?: number;
     other_app_opens?: number;
     app_opens_detail?: string;
+    device_id?: string | null;
   }): Promise<void> {
     if (!this.config.useLive) return;
     try {
@@ -1521,6 +1522,7 @@ class ApiService {
         wifiBypassedOrAirplaneMode: false,
         otherAppOpens: loc.other_app_opens || 0,
         appOpensDetail: loc.app_opens_detail || {},
+        deviceId: loc.device_id || null,
       };
     }
     return states;

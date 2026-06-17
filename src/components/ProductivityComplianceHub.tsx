@@ -434,8 +434,8 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
   const handleExportExcel = () => {
     // Generate real CSV formatted data (fully matches EXCEL and spreadsheet applications)
     let csvContent = 'data:text/csv;charset=utf-8,';
-    csvContent += 'Employee ID,Employee Name,Department,Role,Status,Walked Kilometers (Total),Other App Opens Today,Active Network Interface,WiFi SSID,Developer Mode,Security Violations Count,Latitude,Longitude\n';
-    
+    csvContent += 'Employee ID,Employee Name,Department,Role,Status,Device ID,Walked Kilometers (Total),Other App Opens Today,Apps Used Today,Active Network Interface,WiFi SSID,Developer Mode,Security Violations Count,Latitude,Longitude\n';
+
     employees.forEach(emp => {
       const state = employeeStates[emp.id] || {
         walkedKm: 0,
@@ -451,14 +451,25 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
         activeLng: 77.5946
       };
 
+      const appsUsed = (() => {
+        const detail = (state as any).appOpensDetail;
+        if (!detail || typeof detail !== 'object') return '';
+        return Object.entries(detail as Record<string, number>)
+          .sort((a, b) => b[1] - a[1])
+          .map(([app, n]) => `${app}(${n})`)
+          .join('; ');
+      })();
+
       const row = [
         emp.id,
         `"${emp.name.replace(/"/g, '""')}"`,
         `"${emp.department}"`,
         `"${emp.role}"`,
         emp.status,
+        (state as any).deviceId || '',
         state.walkedKm,
         (state as any).otherAppOpens ?? 0,
+        `"${appsUsed.replace(/"/g, '""')}"`,
         state.networkType,
         state.wifiSsid,
         state.isDeveloperModeOn ? 'YES' : 'NO',
@@ -876,6 +887,16 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
                 </div>
 
                 <div className="space-y-3">
+                  {/* Device ID */}
+                  <div className="p-3 bg-zinc-950 border border-zinc-850 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] text-zinc-500 font-mono uppercase block">Device ID</span>
+                      <span className="text-[9px] font-mono text-zinc-300 break-all text-right max-w-[65%]">
+                        {(selectedEmpState as any).deviceId || '—'}
+                      </span>
+                    </div>
+                  </div>
+
                   {/* APP LOCKOUT STATE INDICATOR */}
                   <div className="p-3 bg-zinc-950 border border-zinc-850 rounded-lg space-y-2">
                     <div className="flex items-center justify-between">

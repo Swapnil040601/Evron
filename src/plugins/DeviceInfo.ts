@@ -1,6 +1,8 @@
 import { registerPlugin, Capacitor } from '@capacitor/core';
 
 export interface DeviceInfoResult {
+  /** Stable Android device identifier (Settings.Secure.ANDROID_ID) */
+  deviceId: string | null;
   wifiSsid: string | null;
   isDeveloperMode: boolean;
   hasUsagePermission: boolean;
@@ -18,6 +20,7 @@ interface DeviceInfoPlugin {
 const DeviceInfoNative = registerPlugin<DeviceInfoPlugin>('DeviceInfo');
 
 const fallback: DeviceInfoResult = {
+  deviceId: null,
   wifiSsid: null,
   isDeveloperMode: false,
   hasUsagePermission: false,

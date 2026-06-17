@@ -50,6 +50,16 @@ public class DeviceInfoPlugin extends Plugin {
         Context context = getContext();
         JSObject result = new JSObject();
 
+        // ── Device ID (stable per-device, no special permission needed) ──────
+        try {
+            String androidId = Settings.Secure.getString(
+                    context.getContentResolver(),
+                    Settings.Secure.ANDROID_ID);
+            result.put("deviceId", (androidId != null && !androidId.isEmpty()) ? androidId : null);
+        } catch (Exception e) {
+            result.put("deviceId", (Object) null);
+        }
+
         // ── WiFi SSID ─────────────────────────────────────────────────────────
         try {
             WifiManager wm = (WifiManager) context.getApplicationContext()
