@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { apiService, SIMULATOR_ACCOUNTS } from '../services/api';
-import { ShieldCheck, Server, AlertTriangle, Eye, EyeOff, LogIn, Sun, Moon, Fingerprint } from 'lucide-react';
+import { ShieldCheck, AlertTriangle, Eye, EyeOff, LogIn, Sun, Moon, Fingerprint } from 'lucide-react';
 import { UserProfile } from '../types';
 import DeviceSimulator from './DeviceSimulator';
 import { BiometricAuth } from '@aparajita/capacitor-biometric-auth';
@@ -33,14 +33,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     }
   }, [themeTrigger]);
 
-  const [endpointUrl, setEndpointUrl] = useState('');
-  const [useLive, setUseLive] = useState(false);
-  const [showConfig, setShowConfig] = useState(false);
-
   useEffect(() => {
-    const config = apiService.getConfig();
-    setEndpointUrl(config.baseUrl);
-    setUseLive(config.useLive);
     checkBiometric();
   }, []);
 
@@ -78,16 +71,6 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     }
   };
 
-  const handleSaveConfig = () => {
-    apiService.saveConfig({ baseUrl: endpointUrl, useLive });
-    setErrorMessage(null);
-    const notification = document.getElementById('config-saved-alert');
-    if (notification) {
-      notification.classList.remove('hidden');
-      setTimeout(() => notification.classList.add('hidden'), 2000);
-    }
-  };
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsConnecting(true);
@@ -110,11 +93,6 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     setEmail(acc.email);
     setPassword(acc.pass);
     try {
-      const prevLive = apiService.getConfig().useLive;
-      if (prevLive) {
-        apiService.saveConfig({ useLive: false });
-        setUseLive(false);
-      }
       const res = await apiService.login(acc.email, acc.pass);
       onLoginSuccess(res.user);
     } catch (err: any) {
@@ -284,56 +262,6 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             </div>
           </div>
 
-          {/* Server settings (collapsed by default) */}
-          <div className="pt-2 border-t border-zinc-900">
-            <button
-              onClick={() => setShowConfig(!showConfig)}
-              className="w-full text-center text-xs text-zinc-500 hover:text-zinc-300 transition flex items-center justify-center gap-1.5"
-            >
-              <Server className="w-3.5 h-3.5" />
-              {showConfig ? 'Hide Settings' : 'Server Settings'}
-            </button>
-
-            {showConfig && (
-              <div className="mt-4 bg-zinc-900/30 border border-zinc-900 rounded-xl p-4 space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-zinc-300 block">Server Address</label>
-                  <input
-                    type="text"
-                    placeholder="https://your-server.com/api"
-                    value={endpointUrl}
-                    onChange={(e) => setEndpointUrl(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-xs text-white focus:outline-none font-mono focus:border-red-500"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-sm font-semibold text-zinc-300 block">Use Live Server</span>
-                    <p className="text-xs text-zinc-500 mt-0.5">Connect to the real backend server</p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={useLive}
-                    onChange={(e) => setUseLive(e.target.checked)}
-                    className="w-5 h-5 text-red-600 bg-black border-zinc-800 rounded focus:ring-0 focus:outline-none shrink-0 cursor-pointer"
-                  />
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleSaveConfig}
-                  className="w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white font-semibold text-sm rounded-lg transition"
-                >
-                  Save
-                </button>
-
-                <div id="config-saved-alert" className="hidden text-xs text-center text-emerald-400">
-                  Settings saved!
-                </div>
-              </div>
-            )}
-          </div>
 
         </div>
       </div>
