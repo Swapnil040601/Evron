@@ -29,11 +29,9 @@ export interface ConnectionConfig {
   recaptchaSiteKey: string;
 }
 
-// Initial fallback mock data, saved in localStorage so changes are sticky.
-const HAS_REAL_API = !!(import.meta.env.VITE_API_URL as string);
 const DEFAULT_CONFIG: ConnectionConfig = {
   baseUrl: (import.meta.env.VITE_API_URL as string) || `${typeof window !== 'undefined' ? window.location.origin : ''}/api`,
-  useLive: HAS_REAL_API,
+  useLive: true,
   recaptchaSiteKey: ''
 };
 
@@ -95,7 +93,8 @@ class ApiService {
     if (storedCfg) {
       try {
         const parsed = JSON.parse(storedCfg);
-        this.config = { ...parsed, useLive: HAS_REAL_API };
+        // Always force live mode; only preserve the saved baseUrl
+        this.config = { ...DEFAULT_CONFIG, baseUrl: parsed.baseUrl || DEFAULT_CONFIG.baseUrl };
       } catch { this.config = DEFAULT_CONFIG; }
     } else {
       localStorage.setItem('evron_conn_cfg', JSON.stringify(DEFAULT_CONFIG));

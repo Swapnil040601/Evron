@@ -37,7 +37,6 @@ import {
   Receipt
 } from 'lucide-react';
 import ExpenseTracker from './ExpenseTracker';
-import DeviceSimulator, { getDeviceHardwareState } from './DeviceSimulator';
 import AuraBackground from './AuraBackground';
 import { useRealDeviceStatus } from '../hooks/useRealDeviceStatus';
 import { getDeviceInfo, openUsageAccessSettings } from '../plugins/DeviceInfo';
@@ -135,7 +134,6 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
   // Status metrics
   const [todayAttendance, setTodayAttendance] = useState<AttendanceRecord | null>(null);
   const [notification, setNotification] = useState<{ type: 'success' | 'err'; msg: string } | null>(null);
-  const [hwState, setHwState] = useState(getDeviceHardwareState());
 
   // Punch-in / Punch-out state
   const [todayPunch, setTodayPunch] = useState<any>(null);
@@ -267,15 +265,6 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
   const [activeSelfieType, setActiveSelfieType] = useState<'punch_in' | 'destination' | 'punch_out' | null>(null);
   const [isSelfieCapturing, setIsSelfieCapturing] = useState(false);
 
-  useEffect(() => {
-    const handleHardwareChange = () => {
-      setHwState(getDeviceHardwareState());
-    };
-    window.addEventListener('device-hardware-changed', handleHardwareChange);
-    return () => {
-      window.removeEventListener('device-hardware-changed', handleHardwareChange);
-    };
-  }, []);
 
   useEffect(() => {
     loadAllData();
@@ -609,7 +598,7 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-600 dark:text-zinc-400">
                   <span>Shift ID: <strong className="text-black dark:text-zinc-200">V-GOLD-0900 (09:00 - 18:05)</strong></span>
                   <span>•</span>
-                  <span>Terminal Bound: <strong className="text-black dark:text-zinc-200">{hwState.imeiLocked ? "IMEI-358941091244510" : "UNBOUND"}</strong></span>
+                  <span>Device: <strong className="text-black dark:text-emerald-400">Registered & Monitored</strong></span>
                   <span>•</span>
                   <span>IP Guard: <strong className="text-black dark:text-emerald-400">192.168.1.182</strong></span>
                 </div>
@@ -617,28 +606,6 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
 
               {/* Dynamic Warning Alerts - No generic boxes, elegant badge arrays */}
               <div className="flex flex-wrap gap-2.5">
-                {/* Low Battery Warning alert */}
-                {hwState.batteryLevel < 20 && (
-                  <div className="px-3 py-2 bg-red-500/15 border border-red-500/40 rounded-xl flex items-center gap-2 text-xs text-red-600 dark:text-red-400 animate-pulse">
-                    <span className="w-2 h-2 bg-red-600 dark:bg-red-400 rounded-full inline-block animate-ping" />
-                    <div>
-                      <strong className="block font-bold">🔋 LOW BATTERY COMPLIANCE RISK</strong>
-                      <span className="text-[10px] opacity-90">Level at {hwState.batteryLevel}%. Please plug in chargers.</span>
-                    </div>
-                  </div>
-                )}
-
-                {/* GPRS Fake App installation alert */}
-                {hwState.unauthorizedAppsInstalled && (
-                  <div className="px-3 py-2 bg-red-600/20 border border-red-500/60 rounded-xl flex items-center gap-2 text-xs text-red-600 dark:text-red-300 animate-bounce">
-                    <AlertTriangle className="w-4 h-4 text-red-500" />
-                    <div>
-                      <strong className="block font-bold">🚫 SECURITY SPOOF ALERT</strong>
-                      <span className="text-[10px] opacity-90">Illegal GPRS/Mock tools detected on filesystem!</span>
-                    </div>
-                  </div>
-                )}
-
                 {/* Real GPS Status Alert */}
                 {!realDevice.gpsEnabled && !realDevice.checking && (
                   <div className="px-3 py-2 bg-red-500/15 border border-red-500/50 rounded-xl flex items-center gap-2 text-xs text-red-600 dark:text-red-400 animate-pulse">
@@ -667,13 +634,10 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
                   </div>
                 )}
 
-                {/* Secure IMEI bound indicator */}
-                {hwState.imeiLocked && (
-                  <div className="px-3 py-1 bg-zinc-900/40 border border-zinc-800 rounded-xl flex items-center gap-2 text-xs text-zinc-800 dark:text-zinc-400">
-                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full inline-block" />
-                    <span className="text-[10px] tracking-tight font-mono uppercase">IMEI Device Lock: SECURE</span>
-                  </div>
-                )}
+                <div className="px-3 py-1 bg-zinc-900/40 border border-zinc-800 rounded-xl flex items-center gap-2 text-xs text-zinc-800 dark:text-zinc-400">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full inline-block" />
+                  <span className="text-[10px] tracking-tight font-mono uppercase">Device: Registered &amp; Monitored</span>
+                </div>
               </div>
             </div>
 
@@ -701,7 +665,7 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
                     <div>
                       <span className="text-[10px] text-zinc-500 font-mono tracking-wider block uppercase">KM DRIVEN (ROUTE)</span>
                       <span className="text-2xl font-mono font-black text-[#ef4444] mt-0.5 block">
-                        {hwState.kilometres} Kilometers
+                        {(walkDistRef.current / 1000).toFixed(2)} Kilometers
                       </span>
                       <span className="text-[9px] text-zinc-400">Real-time GPRS mileage odometer</span>
                     </div>
@@ -710,9 +674,9 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
 
                   <div className="flex items-center justify-between p-1 border-t md:border-t-0 md:border-l border-zinc-800/40 md:pl-4">
                     <div>
-                      <span className="text-[10px] text-zinc-500 font-mono tracking-wider block uppercase">CO-STAFF INACTIVITY</span>
-                      <span className={`text-2xl font-mono font-black mt-0.5 block ${hwState.idleMinutes > 15 ? 'text-amber-500' : 'text-emerald-400'}`}>
-                        {hwState.idleMinutes} Minutes
+                      <span className="text-[10px] text-zinc-500 font-mono tracking-wider block uppercase">GPS STATUS</span>
+                      <span className={`text-2xl font-mono font-black mt-0.5 block ${realDevice.gpsEnabled ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {realDevice.gpsEnabled ? 'Active' : 'Offline'}
                       </span>
                       <span className="text-[9px] text-zinc-400">Location & app monitoring</span>
                     </div>
@@ -1462,7 +1426,6 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
         </div>
       </nav>
 
-      <DeviceSimulator />
     </div>
   );
 }

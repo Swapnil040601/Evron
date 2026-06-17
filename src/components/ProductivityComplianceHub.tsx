@@ -406,7 +406,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
     });
   };
   
-  // Custom camera trigger states
+  // Live geofence breach alerts (populated from real GPS checks only)
   const [cameraAlertsList, setCameraAlertsList] = useState<Array<{
     id: string;
     timestamp: string;
@@ -416,38 +416,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
     severity: 'critical' | 'warning' | 'info';
     subject: string;
     isCleared: boolean;
-  }>>([
-    {
-      id: 'CAM-A1',
-      timestamp: '19:10:45',
-      camera: 'CAM-02 (Precious Gold Zone)',
-      type: 'Theft / Unauthorized Hand Reach',
-      detail: 'Hand boundary crossed with no biometric badge authorization on gold quality station.',
-      severity: 'critical',
-      subject: 'Michael Chen (EMP002)',
-      isCleared: false
-    },
-    {
-      id: 'CAM-A2',
-      timestamp: '18:55:12',
-      camera: 'CAM-05 (Block B Corridor)',
-      type: 'Littering Detected',
-      detail: 'Object discarded on walking path corridor. Cleanup alert pushed to facility management.',
-      severity: 'warning',
-      subject: 'Amara Okafor (EMP003)',
-      isCleared: false
-    },
-    {
-      id: 'CAM-A3',
-      timestamp: '18:12:00',
-      camera: 'CAM-01 (Mobby Lobby)',
-      type: 'Uniform Compliance Alert',
-      detail: 'Employee detected inside high security gold desk without official uniform jacket.',
-      severity: 'warning',
-      subject: 'Emma Watson (EMP005)',
-      isCleared: false
-    }
-  ]);
+  }>>([]);
 
 
   // Sync to outer system dashboard alert system
@@ -455,189 +424,6 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
     if (onTriggerAlert) {
       onTriggerAlert(detail, cameraName, status);
     }
-  };
-
-  // Actions for the AI camera simulations
-  const handleSimulateTheft = () => {
-    const newId = `CAM-T-${Date.now()}`;
-    const timestamp = new Date().toLocaleTimeString();
-    const newAlert = {
-      id: newId,
-      timestamp,
-      camera: 'CAM-02 (Precious Gold Zone)',
-      type: 'THEFT / SECURED MATERIAL ALARM',
-      detail: 'CRITICAL ALERT: Physical touch grab flag verified by AI camera scanner. Immediate lockdown requested!',
-      severity: 'critical' as const,
-      subject: 'Carlos Mendez (EMP008)',
-      isCleared: false
-    };
-
-    setCameraAlertsList(prev => [newAlert, ...prev]);
-    triggerOuterSystemAlert(
-      'AI CAM-02: Secure gold quality touch grab detected inside secure 5x5ft cage! Lockdown triggered.',
-      'Precious Gold Zone CAM-02',
-      'critical'
-    );
-  };
-
-  const handleSimulateLittering = () => {
-    const newId = `CAM-L-${Date.now()}`;
-    const timestamp = new Date().toLocaleTimeString();
-    const newAlert = {
-      id: newId,
-      timestamp,
-      camera: 'CAM-05 (Block B Corridor)',
-      type: 'Premises Cleanliness Littering Alert',
-      detail: 'Facility Rule Violation: Food wrapper littering caught on hallway floor.',
-      severity: 'warning' as const,
-      subject: 'Michael Chen (EMP002)',
-      isCleared: false
-    };
-
-    setCameraAlertsList(prev => [newAlert, ...prev]);
-    
-    // Update local employee list alert stats (only if EMP002 exists in state)
-    setEmployeeStates(prev => {
-      if (!prev['EMP002']) return prev;
-      return {
-        ...prev,
-        'EMP002': {
-          ...prev['EMP002'],
-          securityAlertCount: prev['EMP002'].securityAlertCount + 1
-        }
-      };
-    });
-
-    triggerOuterSystemAlert(
-      'AI CAM-05: Hallway littering behavior caught on Block B premises. Dispatching cleaning bot.',
-      'Block B Corridor CAM-05',
-      'warning'
-    );
-  };
-
-  const handleSimulateUniformViolation = (empId: string) => {
-    const emp = employees.find(e => e.id === empId);
-    if (!emp) return;
-
-    const newId = `CAM-U-${Date.now()}`;
-    const timestamp = new Date().toLocaleTimeString();
-    const newAlert = {
-      id: newId,
-      timestamp,
-      camera: 'CAM-01 (Mobby Lobby)',
-      type: 'Corporate Uniform Inspection Failure',
-      detail: `Employee is not wearing the designated office uniform. Compliance rate dropped.`,
-      severity: 'warning' as const,
-      subject: `${emp.name} (${emp.id})`,
-      isCleared: false
-    };
-
-    setCameraAlertsList(prev => [newAlert, ...prev]);
-
-    // Update uniform compliance state for that user
-    setEmployeeStates(prev => ({
-      ...prev,
-      [empId]: {
-        ...prev[empId],
-        isWearingUniform: false,
-        uniformComplianceRate: Math.max(15, prev[empId].uniformComplianceRate - 15)
-      }
-    }));
-
-    triggerOuterSystemAlert(
-      `AI CAM-01: Uniform non-compliance flagged on ${emp.name}. Action summary dispatch queued.`,
-      'Main Lobby CAM-01',
-      'warning'
-    );
-  };
-
-  const handleSimulateAppViolation = (empId: string, appName: string) => {
-    const emp = employees.find(e => e.id === empId);
-    if (!emp) return;
-
-    // Trigger alert (guard against missing empId in state)
-    setEmployeeStates(prev => {
-      if (!prev[empId]) return prev;
-      return {
-        ...prev,
-        [empId]: {
-          ...prev[empId],
-          currentApp: appName,
-          isAppViolating: true,
-          securityAlertCount: prev[empId].securityAlertCount + 1
-        }
-      };
-    });
-
-    triggerOuterSystemAlert(
-      `Enterprise MDM: ${emp.name} flagged for using forbidden application "${appName}" while on-duty.`,
-      'Mobile MDM Shield',
-      'warning'
-    );
-  };
-
-  const handleToggleDeveloperMode = (empId: string) => {
-    const emp = employees.find(e => e.id === empId);
-    if (!emp) return;
-
-    setEmployeeStates(prev => {
-      const current = prev[empId];
-      if (!current) return prev;
-      const isNewDevMode = !current.isDeveloperModeOn;
-      const updatedStatus = isNewDevMode 
-        ? "Hard Lockdown: Android Developer Options / USB Debugging detected! Application is locked out and can't be turned on."
-        : "Developer options disabled. App loaded and monitored.";
-
-      if (isNewDevMode) {
-        triggerOuterSystemAlert(
-          `[CRITICAL BREACH] ${emp.name} turned on Android Developer Options & USB Debugging. The Evron Watchtower client has automatically lockdown-blocked startup to secure device parameters. App cannot be turned on!`,
-          "Security",
-          "critical"
-        );
-      }
-
-      return {
-        ...prev,
-        [empId]: {
-          ...current,
-          isDeveloperModeOn: isNewDevMode,
-          statusDetail: updatedStatus,
-          securityAlertCount: isNewDevMode ? current.securityAlertCount + 1 : current.securityAlertCount
-        }
-      };
-    });
-  };
-
-  const handleToggleAirplaneEvasion = (empId: string) => {
-    const emp = employees.find(e => e.id === empId);
-    if (!emp) return;
-
-    setEmployeeStates(prev => {
-      const current = prev[empId];
-      if (!current) return prev;
-      const isNewEvasion = !current.wifiBypassedOrAirplaneMode;
-      const updatedStatus = isNewEvasion 
-        ? "ALARM: Evading Trace! Cellular disconnected / Airplane mode, but local WiFi SSID is reachable. Dodging call detected!"
-        : "Network restored to secure corporate mode.";
-
-      if (isNewEvasion) {
-        triggerOuterSystemAlert(
-          `[OFFLINE EVASION ALERT] ${emp.name} cut cellular internet or put phone in Airplane Mode to escape monitoring, but local corporate Wi-Fi beacons remain reachable on their device. Dodging call and escaping surveillance verified!`,
-          "Network",
-          "critical"
-        );
-      }
-
-      return {
-        ...prev,
-        [empId]: {
-          ...current,
-          wifiBypassedOrAirplaneMode: isNewEvasion,
-          statusDetail: updatedStatus,
-          securityAlertCount: isNewEvasion ? current.securityAlertCount + 1 : current.securityAlertCount
-        }
-      };
-    });
   };
 
   const handleClearAlert = (id: string) => {
@@ -1026,11 +812,10 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
                     </div>
                   </div>
 
-                  {/* Right Column Core Stress Simulating Teleporters */}
+                  {/* Right Column — Live geofence status for selected employee */}
                   <div className="space-y-3">
                     <div className="p-3 bg-zinc-950 border border-zinc-900 rounded-lg space-y-2">
-                      <span className="text-[8px] font-mono text-zinc-500 uppercase font-black block">Test Alerts</span>
-                      
+                      <span className="text-[8px] font-mono text-zinc-500 uppercase font-black block">Live Status — {selectedEmployeeObj?.name || '—'}</span>
                       {(() => {
                         const dist = getDistanceInMeters(
                           selectedEmpState.activeLat,
@@ -1039,94 +824,36 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
                           geofenceCenter.lng
                         );
                         const isBreached = dist > geofenceRadius;
-                        
                         return (
                           <div className="space-y-2">
                             <div className="flex items-center justify-between text-[11px] font-mono">
-                              <span className="text-zinc-400">Distance:</span>
-                              <strong className={`font-mono ${isBreached ? 'text-amber-400 font-bold' : 'text-emerald-400 font-semibold'}`}>
-                                {dist.toFixed(0)}m / {geofenceRadius}m limit
+                              <span className="text-zinc-400">Distance from zone:</span>
+                              <strong className={`font-mono ${isBreached ? 'text-amber-400' : 'text-emerald-400'}`}>
+                                {dist.toFixed(0)}m / {geofenceRadius}m
                               </strong>
                             </div>
-
                             <div className="flex justify-between text-[10px] font-mono">
-                              <span className="text-zinc-500">Status:</span>
+                              <span className="text-zinc-500">Zone status:</span>
                               <span className={`font-mono uppercase font-black text-[9px] px-1 rounded ${
-                                isBreached 
-                                  ? 'text-amber-400 bg-amber-500/10 border border-amber-500/20 animate-pulse' 
+                                isBreached
+                                  ? 'text-amber-400 bg-amber-500/10 border border-amber-500/20 animate-pulse'
                                   : 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20'
                               }`}>
                                 {isBreached ? '🚨 Outside zone' : '🟢 Inside zone'}
                               </span>
                             </div>
-
-                            {/* Simulation buttons to trigger breach instantly for testing */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-zinc-900">
-                              <button
-                                onClick={() => {
-                                  // Displace selected employee OUTSIDE the custom geofence center
-                                  const outsideLat = parseFloat((geofenceCenter.lat + (geofenceRadius + 150) / 111320).toFixed(5));
-                                  const outsideLng = parseFloat((geofenceCenter.lng + (geofenceRadius + 150) / 108000).toFixed(5));
-                                  
-                                  setEmployeeStates(prev => {
-                                    const current = prev[selectedEmpId];
-                                    if (!current) return prev;
-                                    const nextState = {
-                                      ...prev,
-                                      [selectedEmpId]: {
-                                        ...current,
-                                        activeLat: outsideLat,
-                                        activeLng: outsideLng,
-                                        offsiteMinutes: current.offsiteMinutes + 12
-                                      }
-                                    };
-                                    
-                                    // Trigger immediate check
-                                    const updates = checkEmployeeGeofence(selectedEmpId, outsideLat, outsideLng, prev);
-                                    if (updates) {
-                                      nextState[selectedEmpId] = { ...nextState[selectedEmpId], ...updates };
-                                    }
-                                    
-                                    return nextState;
-                                  });
-                                }}
-                                className="px-2 py-1.5 bg-zinc-900 border border-zinc-800 hover:border-amber-500/50 text-amber-500 hover:text-white transition rounded text-[9px] font-mono uppercase font-bold cursor-pointer animate-none"
-                              >
-                                Simulate Exit
-                              </button>
-
-                              <button
-                                onClick={() => {
-                                  // Move selected employee INSTANTLY inside the geofence center
-                                  const insideLat = geofenceCenter.lat;
-                                  const insideLng = geofenceCenter.lng;
-
-                                  setEmployeeStates(prev => {
-                                    const current = prev[selectedEmpId];
-                                    if (!current) return prev;
-                                    const nextState = {
-                                      ...prev,
-                                      [selectedEmpId]: {
-                                        ...current,
-                                        activeLat: insideLat,
-                                        activeLng: insideLng,
-                                        offsiteMinutes: 0
-                                      }
-                                    };
-                                    
-                                    // Trigger immediate check
-                                    const updates = checkEmployeeGeofence(selectedEmpId, insideLat, insideLng, prev);
-                                    if (updates) {
-                                      nextState[selectedEmpId] = { ...nextState[selectedEmpId], ...updates };
-                                    }
-
-                                    return nextState;
-                                  });
-                                }}
-                                className="px-2 py-1.5 bg-zinc-900 border border-zinc-800 hover:border-emerald-500/50 text-emerald-400 hover:text-white transition rounded text-[9px] font-mono uppercase font-bold cursor-pointer"
-                              >
-                                Simulate Return
-                              </button>
+                            <div className="grid grid-cols-2 gap-2 text-[9px] font-mono pt-1 border-t border-zinc-900">
+                              <div>
+                                <span className="text-zinc-600 block text-[8px] uppercase">Latitude</span>
+                                <span className="text-zinc-300">{selectedEmpState.activeLat?.toFixed(5) || '—'}</span>
+                              </div>
+                              <div>
+                                <span className="text-zinc-600 block text-[8px] uppercase">Longitude</span>
+                                <span className="text-zinc-300">{selectedEmpState.activeLng?.toFixed(5) || '—'}</span>
+                              </div>
+                            </div>
+                            <div className="text-[9px] font-mono text-zinc-500 pt-1 border-t border-zinc-900">
+                              {selectedEmpState.statusDetail || 'No live data yet.'}
                             </div>
                           </div>
                         );

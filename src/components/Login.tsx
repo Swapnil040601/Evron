@@ -4,10 +4,9 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { apiService, SIMULATOR_ACCOUNTS } from '../services/api';
+import { apiService } from '../services/api';
 import { ShieldCheck, AlertTriangle, Eye, EyeOff, LogIn, Sun, Moon, Fingerprint } from 'lucide-react';
 import { UserProfile } from '../types';
-import DeviceSimulator from './DeviceSimulator';
 import { BiometricAuth } from '@aparajita/capacitor-biometric-auth';
 
 interface LoginProps {
@@ -87,20 +86,6 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     }
   };
 
-  const handleQuickLogin = async (acc: typeof SIMULATOR_ACCOUNTS[0]) => {
-    setIsConnecting(true);
-    setErrorMessage(null);
-    setEmail(acc.email);
-    setPassword(acc.pass);
-    try {
-      const res = await apiService.login(acc.email, acc.pass);
-      onLoginSuccess(res.user);
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Login failed. Please try again.');
-    } finally {
-      setIsConnecting(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4 sm:p-6 select-none" id="auth-login-viewcontainer">
@@ -215,54 +200,6 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             )}
           </form>
 
-          {/* Quick login profiles — simulation mode only */}
-          {!apiService.getConfig().useLive ? (
-          <div className="space-y-3 pt-1">
-            <div className="flex items-center gap-2">
-              <div className="h-[1px] bg-zinc-900 flex-1" />
-              <span className="text-xs text-zinc-500">Quick Login</span>
-              <div className="h-[1px] bg-zinc-900 flex-1" />
-            </div>
-
-            <p className="text-xs text-zinc-500 text-center">Tap a name below to login:</p>
-
-            <div className="grid grid-cols-1 gap-2">
-              {SIMULATOR_ACCOUNTS.map((acc) => {
-                let colorClass = 'border-purple-500/20 text-purple-400 hover:bg-purple-950/10';
-                if (acc.role === 'admin') colorClass = 'border-teal-500/20 text-teal-450 hover:bg-teal-950/10';
-                if (acc.role === 'user') colorClass = 'border-amber-500/20 text-amber-500 hover:bg-amber-950/10';
-
-                const roleLabel = acc.role === 'super_admin' ? 'Super Admin' : acc.role === 'admin' ? 'Admin' : 'Employee';
-
-                return (
-                  <button
-                    key={acc.email}
-                    onClick={() => handleQuickLogin(acc)}
-                    className={`p-3 w-full btn-glass rounded-xl text-left hover:border-zinc-500 transition flex items-center justify-between gap-2 cursor-pointer ${colorClass}`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full overflow-hidden border border-zinc-800 shrink-0">
-                        <img
-                          src={apiService.getFileUrl(acc.avatar)}
-                          alt={acc.name}
-                          referrerPolicy="no-referrer"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div>
-                        <h5 className="text-sm font-bold text-white leading-none">{acc.name}</h5>
-                        <p className="text-xs text-zinc-400 leading-none mt-1">{acc.email}</p>
-                      </div>
-                    </div>
-                    <span className="text-xs font-semibold bg-zinc-950/80 px-2 py-1 rounded shrink-0 text-zinc-300">
-                      {roleLabel}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          ) : (
           <div className="space-y-2 pt-1">
             <div className="flex items-center gap-2">
               <div className="h-[1px] bg-zinc-900 flex-1" />
@@ -271,11 +208,9 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             </div>
             <p className="text-xs text-zinc-500 text-center">Use your <span className="text-zinc-300">@evronnetworks.com</span> email and password.</p>
           </div>
-          )}
 
         </div>
       </div>
-      <DeviceSimulator />
     </div>
   );
 }
