@@ -13,7 +13,7 @@ interface DaySummaryProps {
 
 export default function DaySummary({ employees }: DaySummaryProps) {
   // Date selection state
-  const [selectedDate, setSelectedDate] = useState('2026-05-24');
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
 
   // Dynamically calculate statistics from the selected list
   const totalRoster = employees.length;
@@ -45,14 +45,9 @@ export default function DaySummary({ employees }: DaySummaryProps) {
 
   // Function to offset days
   const handleDayStep = (direction: 'prev' | 'next') => {
-    const currentDay = parseInt(selectedDate.split('-')[2]);
-    let newDayStr = '';
-    if (direction === 'prev') {
-      newDayStr = `2026-05-${String(Math.max(1, currentDay - 1)).padStart(2, '0')}`;
-    } else {
-      newDayStr = `2026-05-${String(Math.min(31, currentDay + 1)).padStart(2, '0')}`;
-    }
-    setSelectedDate(newDayStr);
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() + (direction === 'prev' ? -1 : 1));
+    setSelectedDate(d.toISOString().slice(0, 10));
   };
 
   return (

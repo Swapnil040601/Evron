@@ -475,14 +475,17 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
 
     setCameraAlertsList(prev => [newAlert, ...prev]);
     
-    // Update local employee list alert stats
-    setEmployeeStates(prev => ({
-      ...prev,
-      'EMP002': {
-        ...prev['EMP002'],
-        securityAlertCount: prev['EMP002'].securityAlertCount + 1
-      }
-    }));
+    // Update local employee list alert stats (only if EMP002 exists in state)
+    setEmployeeStates(prev => {
+      if (!prev['EMP002']) return prev;
+      return {
+        ...prev,
+        'EMP002': {
+          ...prev['EMP002'],
+          securityAlertCount: prev['EMP002'].securityAlertCount + 1
+        }
+      };
+    });
 
     triggerOuterSystemAlert(
       'AI CAM-05: Hallway littering behavior caught on Block B premises. Dispatching cleaning bot.',
@@ -531,16 +534,19 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
     const emp = employees.find(e => e.id === empId);
     if (!emp) return;
 
-    // Trigger alert
-    setEmployeeStates(prev => ({
-      ...prev,
-      [empId]: {
-        ...prev[empId],
-        currentApp: appName,
-        isAppViolating: true,
-        securityAlertCount: prev[empId].securityAlertCount + 1
-      }
-    }));
+    // Trigger alert (guard against missing empId in state)
+    setEmployeeStates(prev => {
+      if (!prev[empId]) return prev;
+      return {
+        ...prev,
+        [empId]: {
+          ...prev[empId],
+          currentApp: appName,
+          isAppViolating: true,
+          securityAlertCount: prev[empId].securityAlertCount + 1
+        }
+      };
+    });
 
     triggerOuterSystemAlert(
       `Enterprise MDM: ${emp.name} flagged for using forbidden application "${appName}" while on-duty.`,

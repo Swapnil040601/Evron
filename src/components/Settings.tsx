@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { apiService } from '../services/api';
 import { BiometricAuth } from '@aparajita/capacitor-biometric-auth';
 import { 
   User, 
@@ -51,14 +52,22 @@ export default function Settings({ onLogout }: SettingsProps) {
 
   const [activeTab, setActiveTab] = useState<TabType>('personal');
 
-  // Personal Information states (from screenshots)
-  const [fullName, setFullName] = useState('Swapnil Rathore');
-  const [dob, setDob] = useState('04/06/2001');
-  const [address, setAddress] = useState('37, 6b, Street 37th, Sector 4, Bhilai, CG');
-  const [country, setCountry] = useState('India');
-  const [email, setEmail] = useState('swapnilrathoreswapnil@gmail.com');
-  const [phone, setPhone] = useState('+918269253111');
-  const [phoneVerified, setPhoneVerified] = useState(true);
+  // Personal Information states — loaded from real profile on mount
+  const [fullName, setFullName] = useState('');
+  const [dob, setDob] = useState('');
+  const [address, setAddress] = useState('');
+  const [country, setCountry] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [phoneVerified] = useState(true);
+
+  useEffect(() => {
+    apiService.getProfile().then(profile => {
+      setFullName(profile.name || '');
+      setEmail(profile.email || '');
+      setPhone(profile.phone || '');
+    }).catch(() => {});
+  }, []);
 
 
 
@@ -116,12 +125,23 @@ export default function Settings({ onLogout }: SettingsProps) {
   // Notice alerts feedback
   const [showSavedMsg, setShowSavedMsg] = useState(false);
 
-  const handleSave = (e: React.FormEvent) => {
+  const [saveError, setSaveError] = useState('');
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setShowSavedMsg(true);
-    setTimeout(() => {
-      setShowSavedMsg(false);
-    }, 3000);
+    setSaveError('');
+    try {
+      await apiService.updateProfile({ name: fullName, email, phone });
+      if (currentPassword && newPassword) {
+        await apiService.changePassword(currentPassword, newPassword);
+        setCurrentPassword('');
+        setNewPassword('');
+      }
+      setShowSavedMsg(true);
+      setTimeout(() => setShowSavedMsg(false), 3000);
+    } catch (err: any) {
+      setSaveError(err?.message || 'Failed to save. Please try again.');
+    }
   };
 
   return (
@@ -136,7 +156,12 @@ export default function Settings({ onLogout }: SettingsProps) {
         {showSavedMsg && (
           <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-3.5 py-1.5 rounded-lg text-xs font-mono flex items-center gap-2 animate-bounce">
             <CheckCircle2 className="w-4 h-4 animate-pulse" />
-            <span>Information saved and encrypted successfully!</span>
+            <span>Information saved successfully!</span>
+          </div>
+        )}
+        {saveError && (
+          <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-3.5 py-1.5 rounded-lg text-xs font-mono">
+            {saveError}
           </div>
         )}
       </div>

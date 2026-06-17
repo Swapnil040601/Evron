@@ -152,7 +152,7 @@ export default function Dashboard({
         </motion.div>
 
         <motion.div 
-          onClick={() => onNavigate('Live')}
+          onClick={() => onNavigate('Productivity')}
           whileHover={{ scale: 1.025, borderColor: "rgba(239, 68, 68, 0.65)", backgroundColor: "rgba(24, 24, 27, 0.85)" }}
           whileTap={{ scale: 0.98 }}
           className="bg-zinc-900/40 border border-zinc-800 p-4 rounded-xl flex flex-col justify-between col-span-2 lg:col-span-1 cursor-pointer transition-colors shadow-sm" 
@@ -280,7 +280,7 @@ export default function Dashboard({
                 <h3 className="font-bold tracking-tight text-white font-mono text-xs uppercase">Recent Activity</h3>
               </div>
               <button
-                onClick={() => onNavigate('Live')}
+                onClick={() => onNavigate('Productivity')}
                 className="text-xs text-[#ef4444] hover:text-[#f87171] font-semibold flex items-center gap-1 hover:underline font-mono"
               >
                 View Live <ArrowRight className="w-3 h-3" />
@@ -370,7 +370,7 @@ export default function Dashboard({
                 </button>
 
                 <button
-                  onClick={() => onNavigate('Live')}
+                  onClick={() => onNavigate('Productivity')}
                   className="flex flex-col items-center justify-center p-4 bg-zinc-900 border border-zinc-800 rounded-xl hover:border-zinc-700 hover:bg-zinc-800/50 transition text-center group"
                 >
                   <Video className="w-5 h-5 text-[#ef4444] group-hover:scale-110 transition mb-2" />

@@ -32,7 +32,7 @@ export interface ConnectionConfig {
 // Initial fallback mock data, saved in localStorage so changes are sticky.
 const DEFAULT_CONFIG: ConnectionConfig = {
   baseUrl: (import.meta.env.VITE_API_URL as string) || `${typeof window !== 'undefined' ? window.location.origin : ''}/api`,
-  useLive: true,
+  useLive: false,
   recaptchaSiteKey: ''
 };
 
@@ -82,6 +82,7 @@ class ApiService {
   private canteenVisits: CanteenVisit[] = [];
   private alerts: Alert[] = [];
   private settings: AppSetting[] = [];
+  private expenses: any[] = [];
 
   constructor() {
     this.loadState();
@@ -91,7 +92,11 @@ class ApiService {
   private loadState() {
     const storedCfg = localStorage.getItem('evron_conn_cfg');
     if (storedCfg) {
-      try { this.config = JSON.parse(storedCfg); } catch { this.config = DEFAULT_CONFIG; }
+      try {
+        const parsed = JSON.parse(storedCfg);
+        // Always use simulation mode — live backend credentials are managed separately
+        this.config = { ...parsed, useLive: false };
+      } catch { this.config = DEFAULT_CONFIG; }
     } else {
       localStorage.setItem('evron_conn_cfg', JSON.stringify(DEFAULT_CONFIG));
     }
@@ -1562,7 +1567,10 @@ class ApiService {
       if (!res.ok) throw new Error('Failed to submit expense');
       return await res.json();
     }
-    return { id: Date.now(), ...data, status: 'Pending', created_at: new Date().toISOString() };
+    const profile = await this.getProfile();
+    const newExpense = { id: Date.now(), ...data, status: 'Pending', created_at: new Date().toISOString(), user_id: profile.id, user_name: profile.name };
+    this.expenses.push(newExpense);
+    return newExpense;
   }
 
   public async getMyExpenses(): Promise<any[]> {
@@ -1573,7 +1581,8 @@ class ApiService {
       if (!res.ok) throw new Error('Failed to fetch expenses');
       return await res.json();
     }
-    return [];
+    const profile = await this.getProfile();
+    return this.expenses.filter(e => e.user_id === profile.id || e.user_name === profile.name);
   }
 
   public async getAllExpenses(filters: { status?: string; user_id?: number } = {}): Promise<any[]> {
@@ -1587,7 +1596,10 @@ class ApiService {
       if (!res.ok) throw new Error('Failed to fetch all expenses');
       return await res.json();
     }
-    return [];
+    let result = this.expenses;
+    if (filters.status) result = result.filter(e => e.status === filters.status);
+    if (filters.user_id) result = result.filter(e => e.user_id === filters.user_id);
+    return result;
   }
 
   public async updateExpenseStatus(id: number, status: 'Approved' | 'Rejected', admin_note?: string): Promise<any> {
@@ -1599,6 +1611,10 @@ class ApiService {
       });
       if (!res.ok) throw new Error('Failed to update expense');
       return await res.json();
+    }
+    const idx = this.expenses.findIndex(e => e.id === id);
+    if (idx !== -1) {
+      this.expenses[idx] = { ...this.expenses[idx], status, admin_note };
     }
     return { id, status };
   }

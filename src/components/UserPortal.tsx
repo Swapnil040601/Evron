@@ -23,7 +23,7 @@ import {
   Plus,
   Trash2,
   CalendarDays,
-  Camera,
+  Camera as CameraIcon,
   CheckCircle,
   AlertTriangle,
   FileText,
@@ -900,7 +900,7 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
                 
                 <div className="space-y-1">
                   <h3 className="text-xs font-mono font-black uppercase text-[#ef4444] tracking-widest flex items-center gap-1.5">
-                    <Camera className="w-4 h-4" />
+                    <CameraIcon className="w-4 h-4" />
                     Multi-Stage Selfie Verification
                   </h3>
                   <p className="text-[11px] text-zinc-650 dark:text-zinc-400 leading-normal">
@@ -1305,7 +1305,7 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
                     className="w-full h-full object-cover"
                   />
                   <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex flex-col items-center justify-center text-[10px] text-white cursor-pointer font-bold uppercase font-sans">
-                    <Camera className="w-5 h-5 mb-1 text-red-400" />
+                    <CameraIcon className="w-5 h-5 mb-1 text-red-400" />
                     Upload File
                     <input
                       type="file"
@@ -1379,7 +1379,7 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
                     type="submit"
                     className="px-4 py-2.5 bg-red-650 hover:bg-red-500 text-white font-bold font-mono text-[10px] tracking-wider rounded transition-all shadow bg-[#ef4444]"
                   >
-                    SAVE PROFILE PROFILE
+                    SAVE PROFILE
                   </button>
                 </form>
               </div>
