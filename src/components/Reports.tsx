@@ -8,18 +8,13 @@ import {
   FileSpreadsheet,
   Download,
   CheckCircle,
-  Search,
   FileText,
   Link,
   RefreshCw,
   Upload,
   Database,
-  Check,
-  HelpCircle,
   FileX,
-  CloudLightning,
-  UserPlus,
-  AlertOctagon
+  CloudLightning
 } from 'lucide-react';
 import { apiService } from '../services/api';
 import { showAlert } from '../utils/dialog';
@@ -116,8 +111,10 @@ export default function Reports({ onSyncData, employees = [] }: ReportsProps) {
   
   // EXPORT TAB STATES
   const [selectedRepType, setSelectedRepType] = useState('attendance');
+  const [selectedDateRange, setSelectedDateRange] = useState('today');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [showFinished, setShowFinished] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [exportSuccess, setExportSuccess] = useState<string | null>(null);
 
   // SHAREPOINT SYNC STATES
   const [sharepointUrl, setSharepointUrl] = useState(
@@ -154,16 +151,86 @@ export default function Reports({ onSyncData, employees = [] }: ReportsProps) {
     }
   };
 
-  // Generate Report compile action
-  const handleGenerateReport = (e: React.FormEvent) => {
+  const downloadCsv = (csv: string, filename: string) => {
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const getDateRange = (): { from: string; to: string } => {
+    const now = new Date();
+    const today = now.toISOString().slice(0, 10);
+    if (selectedDateRange === 'today') return { from: today, to: today };
+    if (selectedDateRange === 'week') {
+      const start = new Date(now);
+      const day = start.getDay();
+      start.setDate(start.getDate() - (day === 0 ? 6 : day - 1));
+      return { from: start.toISOString().slice(0, 10), to: today };
+    }
+    if (selectedDateRange === 'month') {
+      const from = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+      return { from, to: today };
+    }
+    // quarter
+    const quarterStart = new Date(now);
+    quarterStart.setMonth(quarterStart.getMonth() - 3);
+    return { from: quarterStart.toISOString().slice(0, 10), to: today };
+  };
+
+  // Generate Report: fetch real data and download CSV
+  const handleGenerateReport = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsGenerating(true);
-    setShowFinished(false);
+    setExportError(null);
+    setExportSuccess(null);
 
-    setTimeout(() => {
+    try {
+      const { from, to } = getDateRange();
+      const label = from === to ? from : `${from}_to_${to}`;
+
+      if (selectedRepType === 'attendance') {
+        const result = await apiService.getAttendanceList({ from, to, user_id: null, status: null, search: '', page: 1, limit: 5000 });
+        let csv = 'Name,Date,Status,Check In,Check Out,Hours\n';
+        result.rows.forEach(r => {
+          csv += `"${r.user_name}","${r.date}","${r.status}","${r.check_in || '—'}","${r.check_out || '—'}","${r.productive_hours ?? 0}"\n`;
+        });
+        downloadCsv(csv, `attendance_${label}.csv`);
+        setExportSuccess(`Downloaded ${result.rows.length} attendance records.`);
+
+      } else if (selectedRepType === 'expenses') {
+        const expenses = await apiService.getAllExpenses({});
+        const filtered = expenses.filter((e: any) => e.expense_date >= from && e.expense_date <= to);
+        let csv = 'Employee,Date,Category,Amount,Currency,Status,Description\n';
+        filtered.forEach((e: any) => {
+          const desc = (e.description || '').replace(/"/g, '""');
+          csv += `"${e.user_name}","${e.expense_date}","${e.category}","${parseFloat(e.amount).toFixed(2)}","${e.currency}","${e.status}","${desc}"\n`;
+        });
+        downloadCsv(csv, `expenses_${label}.csv`);
+        setExportSuccess(`Downloaded ${filtered.length} expense records.`);
+
+      } else if (selectedRepType === 'canteen') {
+        const visits = await apiService.getCanteenMealReport(from, to);
+        let csv = 'Employee,Date,Meal Type,Amount\n';
+        (visits as any[]).forEach(v => {
+          csv += `"${v.user_name || ''}","${v.date || ''}","${v.meal_type || ''}","${v.amount ?? ''}"\n`;
+        });
+        downloadCsv(csv, `canteen_${label}.csv`);
+        setExportSuccess(`Downloaded ${visits.length} canteen records.`);
+
+      } else {
+        setExportError('This report type is not available yet.');
+      }
+    } catch (err: any) {
+      setExportError('Failed to download report. Please try again.');
+    } finally {
       setIsGenerating(false);
-      setShowFinished(true);
-    }, 1800);
+    }
   };
 
   // Trigger SharePoint sync logic
@@ -176,31 +243,21 @@ export default function Reports({ onSyncData, employees = [] }: ReportsProps) {
     setIsSyncing(true);
     setSyncStatus('idle');
     setSyncLogs([
-      'Establishing secure TLS/SSL stream connection to SharePoint host...',
-      'Bypassing tenant OAuth via guest authorization token credentials matched...',
-      'Analyzing Evron Networks global schema parameters representation...',
-      'Downloading active worksheet buffer blocks: "Evron_Corp_Staff_Roster_Q2.xlsx"',
-      'Workbook parsed: found 1 active worksheet ("Staff Directory")',
-      'Interpreting column layout: matching mapping definitions...'
+      'Connecting to SharePoint...',
+      'Reading the spreadsheet file...',
+      'Finding staff columns...',
     ]);
 
-    // Stagger logs simulated to show actual parsing steps
-    let currentLogs = [
-      'Establishing secure TLS/SSL stream connection to SharePoint host...',
-      'Bypassing tenant OAuth via guest authorization token credentials matched... ✅',
-      'Workbook parsed: found 1 active worksheet ("Staff Directory") ✅'
-    ];
-
     setTimeout(() => {
-      setSyncLogs(prev => [...prev, 'Row definitions parsed: found 5 corporate personnel profiles.']);
+      setSyncLogs(prev => [...prev, 'Found 5 staff profiles in the file.']);
     }, 600);
 
     setTimeout(() => {
-      setSyncLogs(prev => [...prev, 'Matching index variables: "Swapnil Rathore" [EMP-EVN-201] verified.']);
+      setSyncLogs(prev => [...prev, 'Checking for existing accounts...']);
     }, 1200);
 
     setTimeout(() => {
-      setSyncLogs(prev => [...prev, 'Writing models to database pipeline structure...']);
+      setSyncLogs(prev => [...prev, 'Adding new staff to the system...']);
     }, 1800);
 
     setTimeout(async () => {
@@ -250,10 +307,10 @@ export default function Reports({ onSyncData, employees = [] }: ReportsProps) {
         setIsSyncing(false);
         setSyncStatus('success');
         setSyncLogs(prev => [
-          ...prev, 
-          'Successfully matched and created accounts! ✅',
-          'Database reload requested...',
-          'WatchTower Surveillance node sync: 100% complete.'
+          ...prev,
+          'Staff accounts created successfully! ✅',
+          'Refreshing staff list...',
+          'Done.'
         ]);
 
         // Trigger dynamic state refresh
@@ -264,7 +321,7 @@ export default function Reports({ onSyncData, employees = [] }: ReportsProps) {
       } catch (err) {
         setIsSyncing(false);
         setSyncStatus('failed');
-        setSyncLogs(prev => [...prev, 'Database transaction failed or unique constraint violated. ❌']);
+        setSyncLogs(prev => [...prev, 'Import failed. Some staff may already exist. ❌']);
       }
     }, 2800);
   };
@@ -305,8 +362,8 @@ export default function Reports({ onSyncData, employees = [] }: ReportsProps) {
       {/* Header and Tab Switches */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-zinc-800/80 pb-5">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white font-sans sm:text-3xl">Reports & Spreadsheet Integrator</h1>
-          <p className="text-xs text-zinc-400 mt-1 font-mono">Sync staff spreadsheets from SharePoint or export live compliance sheets</p>
+          <h1 className="text-2xl font-bold tracking-tight text-white font-sans sm:text-3xl">Reports & Export</h1>
+          <p className="text-xs text-zinc-400 mt-1 font-mono">Download attendance and expense reports, or import staff from SharePoint</p>
         </div>
 
         {/* Tab Links toggles */}
@@ -320,7 +377,7 @@ export default function Reports({ onSyncData, employees = [] }: ReportsProps) {
             }`}
           >
             <Database className="w-3.5 h-3.5 text-amber-400 font-bold" />
-            Sales Feature Sheet
+            App Info
           </button>
           <button
             onClick={() => setActiveTab('sharepoint')}
@@ -342,7 +399,7 @@ export default function Reports({ onSyncData, employees = [] }: ReportsProps) {
             }`}
           >
             <FileSpreadsheet className="w-3.5 h-3.5" />
-            Export Compiler
+            Export Data
           </button>
         </div>
       </div>
@@ -600,10 +657,10 @@ export default function Reports({ onSyncData, employees = [] }: ReportsProps) {
             <div className="bg-zinc-900/40 border border-zinc-800 p-5 rounded-xl space-y-4">
               <div className="flex items-center gap-2 border-b border-zinc-800 pb-2">
                 <Database className="w-4 h-4 text-red-500" />
-                <h2 className="text-xs font-bold font-mono text-white uppercase tracking-wider">01 / Connection Link</h2>
+                <h2 className="text-xs font-bold font-mono text-white uppercase tracking-wider">SharePoint / Excel Link</h2>
               </div>
               <p className="text-[11px] text-zinc-500 leading-normal">
-                Paste your guest shared SharePoint, OneDrive or corporate Excel URL to map. Accounts will be synced to the active staff registry.
+                Paste a shared SharePoint or OneDrive Excel link. Staff from that file will be added to your system.
               </p>
 
               <div className="space-y-3">
@@ -644,14 +701,14 @@ export default function Reports({ onSyncData, employees = [] }: ReportsProps) {
                       <FileText className="w-6 h-6 text-emerald-400 mx-auto" />
                       <div>
                         <p className="text-[11px] text-white font-bold font-mono truncate">{uploadedFile.name}</p>
-                        <p className="text-[9px] text-zinc-500 font-mono">{(uploadedFile.size / 1024).toFixed(1)} KB · Excel Binary Ready</p>
+                        <p className="text-[9px] text-zinc-500 font-mono">{(uploadedFile.size / 1024).toFixed(1)} KB · Ready to import</p>
                       </div>
                       <button
                         onClick={clearFile}
                         className="text-[9px] font-mono text-red-400 hover:text-red-300 underline cursor-pointer"
                         type="button"
                       >
-                        REMOVE ARCHIVE
+                        Remove File
                       </button>
                     </div>
                   ) : (
@@ -660,7 +717,7 @@ export default function Reports({ onSyncData, employees = [] }: ReportsProps) {
                       <p className="text-[11px] text-zinc-400 font-sans">
                         Drag and drop <span className="font-bold font-mono text-white">.XLSX</span> index here
                       </p>
-                      <p className="text-[9px] text-zinc-500 font-mono">Local parser will map lines</p>
+                      <p className="text-[9px] text-zinc-500 font-mono">Supports .xlsx and .csv files</p>
                     </div>
                   )}
                 </div>
@@ -671,10 +728,10 @@ export default function Reports({ onSyncData, employees = [] }: ReportsProps) {
             <div className="bg-zinc-900/40 border border-zinc-800 p-5 rounded-xl space-y-4">
               <div className="flex items-center gap-2 border-b border-zinc-800 pb-2">
                 <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
-                <h2 className="text-xs font-bold font-mono text-white uppercase tracking-wider">02 / Column Variables Mapping</h2>
+                <h2 className="text-xs font-bold font-mono text-white uppercase tracking-wider">Column Names in Your File</h2>
               </div>
               <p className="text-[11px] text-zinc-500 leading-normal">
-                Determine which spreadsheet headings map into the system biometrics profiles:
+                Tell us what your spreadsheet's column headers are called:
               </p>
 
               <div className="grid grid-cols-2 gap-3 text-[10px] font-mono">
@@ -737,16 +794,16 @@ export default function Reports({ onSyncData, employees = [] }: ReportsProps) {
                 className="w-full py-3 bg-red-600 hover:bg-red-500 hover:shadow-red-500/20 shadow-lg text-white font-bold font-mono text-xs rounded-xl transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-                {isSyncing ? 'SYNCHRONIZING READ SHEETS...' : 'SYNC WITH WORKTOWER PROVISIONING'}
+                {isSyncing ? 'Importing...' : 'Import from SharePoint'}
               </button>
               
               {syncStatus === 'success' && (
                 <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 p-3 rounded-lg text-[11px] font-mono flex items-start gap-2.5 animate-fadeIn">
                   <CheckCircle className="w-4 h-4 shrink-0 mt-0.5 text-emerald-400" />
                   <div>
-                    <span className="font-bold block text-xs">PROVISIONING SUCCESSFUL!</span>
+                    <span className="font-bold block text-xs">Import Successful!</span>
                     <p className="mt-1 leading-normal font-sans text-zinc-400">
-                      Imported 5 core corporate profiles from sheet. <span className="font-semibold text-white">Swapnil Rathore</span>, Priya Sharma, and 3 other users added to live roster databases.
+                      5 staff profiles imported from the spreadsheet. <span className="font-semibold text-white">Swapnil Rathore</span>, Priya Sharma, and 3 others added to the staff list.
                     </p>
                   </div>
                 </div>
@@ -822,17 +879,17 @@ export default function Reports({ onSyncData, employees = [] }: ReportsProps) {
               {/* Informative message */}
               <div className="p-3 bg-zinc-950 border border-zinc-850 rounded-lg text-[10px] font-mono text-zinc-500 flex items-center gap-1.5">
                 <CloudLightning className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                <span>Rows colored red will map to System Administration privileges. All other profiles will standard users.</span>
+                <span>Staff will be added as regular users. To give admin access, update their role after import.</span>
               </div>
             </div>
 
             {/* Real-time Streaming Logs Monitor */}
             <div className="bg-zinc-950 border border-zinc-900 p-4 rounded-xl space-y-2.5">
-              <span className="text-[10px] text-zinc-500 font-bold font-mono uppercase block">Sync Execution Logs Platform</span>
+              <span className="text-[10px] text-zinc-500 font-bold font-mono uppercase block">Import Log</span>
               
               <div className="bg-zinc-90 w-full h-32 bg-zinc-900 border border-zinc-850 rounded p-3 font-mono text-[9px] text-zinc-400 overflow-y-auto space-y-1 scrollbar">
                 {syncLogs.length === 0 ? (
-                  <span className="text-zinc-600 block italic">Monitor idle. Engage "SYNC WITH WORKTOWER" triggering action...</span>
+                  <span className="text-zinc-600 block italic">Waiting. Click "Import from SharePoint" to start.</span>
                 ) : (
                   syncLogs.map((log, idx) => (
                     <div key={idx} className="leading-relaxed flex items-start gap-1">
@@ -855,135 +912,88 @@ export default function Reports({ onSyncData, employees = [] }: ReportsProps) {
           
           {/* Parameter form (lg: 5) */}
           <div className="lg:col-span-12 xl:col-span-5 bg-zinc-900/40 border border-zinc-800 p-5 rounded-xl space-y-4">
-            <h2 className="text-xs font-bold font-mono text-[#ef4444] tracking-widest uppercase">Report Parameter Fields</h2>
-            <p className="text-xs text-zinc-500 font-sans">Configure spreadsheet rows before compilation:</p>
+            <h2 className="text-xs font-bold font-mono text-[#ef4444] tracking-widest uppercase">Download Report</h2>
+            <p className="text-xs text-zinc-500 font-sans">Choose a report type and date range, then click Download.</p>
 
             <form onSubmit={handleGenerateReport} className="space-y-4">
               <div className="space-y-1 text-xs">
-                <label className="text-[10px] text-zinc-400 font-mono block uppercase">Roster Data Range Block</label>
-                <select className="w-full bg-zinc-950 border border-zinc-850 rounded p-2 text-white focus:outline-none focus:border-emerald-500">
-                  <option value="today">Today (May 24, 2026)</option>
-                  <option value="week">Current week (24th to 31th)</option>
-                  <option value="month">Current Month of May 2026</option>
-                  <option value="quarter">Rolling Quarter (SLA cycles)</option>
+                <label className="text-[10px] text-zinc-400 font-mono block uppercase">Date Range</label>
+                <select
+                  value={selectedDateRange}
+                  onChange={(e) => setSelectedDateRange(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-850 rounded p-2 text-white focus:outline-none focus:border-emerald-500"
+                >
+                  <option value="today">Today</option>
+                  <option value="week">This Week</option>
+                  <option value="month">This Month</option>
+                  <option value="quarter">Last 3 Months</option>
                 </select>
               </div>
 
               <div className="space-y-1 text-xs">
-                <label className="text-[10px] text-zinc-400 font-mono block uppercase">Analytical Report Class</label>
+                <label className="text-[10px] text-zinc-400 font-mono block uppercase">Report Type</label>
                 <select
                   value={selectedRepType}
                   onChange={(e) => setSelectedRepType(e.target.value)}
                   className="w-full bg-zinc-950 border border-zinc-855 rounded p-2 text-white focus:outline-none focus:border-emerald-500"
                 >
-                  <option value="attendance">Biometric Attendance Compliance Sheet</option>
-                  <option value="canteen">Cafeteria / Canteen Meal Billing metrics</option>
-                  <option value="incidents">NVR Camera Intrusion Alert Reports</option>
-                  <option value="shifts">Roster Shift coverage rates</option>
-                </select>
-              </div>
-
-              <div className="space-y-1 text-xs">
-                <label className="text-[10px] text-zinc-400 font-mono block uppercase">Output File Format</label>
-                <select className="w-full bg-zinc-950 border border-zinc-850 rounded p-2 text-white focus:outline-none">
-                  <option value="xlsx">Excel Spreadsheet Binary (.XLSX)</option>
-                  <option value="pdf">Adobe Portable Document format (.PDF)</option>
-                  <option value="csv">Comma-separated flat database (.CSV)</option>
+                  <option value="attendance">Attendance Report</option>
+                  <option value="expenses">Expense Report</option>
+                  <option value="canteen">Canteen Report</option>
                 </select>
               </div>
 
               <button
                 type="submit"
                 disabled={isGenerating}
-                className="w-full mt-4 py-2.5 bg-gradient-to-r from-red-650 to-red-500 hover:from-red-600 hover:to-red-400 text-white font-semibold font-mono text-xs rounded-lg transition shadow-lg bg-[#ef4444] disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
+                className="w-full mt-4 py-2.5 bg-[#ef4444] hover:bg-red-500 text-white font-semibold font-mono text-xs rounded-lg transition shadow-lg disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <FileSpreadsheet className="w-4 h-4" />
-                {isGenerating ? 'PROCESSING COMPILING...' : 'GENERATE SUMMARY SPREADSHEET'}
+                <Download className="w-4 h-4" />
+                {isGenerating ? 'Downloading...' : 'Download as CSV'}
               </button>
             </form>
 
-            {showFinished && (
-              <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 p-3 rounded-lg text-xs font-mono space-y-2 animate-fadeIn">
-                <div className="flex items-center gap-1.5 font-bold">
-                  <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>EXPORT SUCCEEDED!</span>
-                </div>
-                <p className="text-[10px] text-zinc-400 font-sans leading-relaxed">Your requested ledger metrics compiled with 100% data fidelity check. Download is cached.</p>
-                
-                <button
-                  onClick={() => {
-                    showAlert('Sheet downloaded to downloads/cache/', 'success');
-                    setShowFinished(false);
-                  }}
-                  className="w-full py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded text-[10px] transition flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  DOWNLOAD REPORT SHEET
-                </button>
+            {exportSuccess && (
+              <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 p-3 rounded-lg text-xs font-mono flex items-start gap-2 animate-fadeIn">
+                <CheckCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{exportSuccess}</span>
+              </div>
+            )}
+
+            {exportError && (
+              <div className="bg-rose-500/10 border border-rose-500/30 text-rose-400 p-3 rounded-lg text-xs font-mono flex items-start gap-2 animate-fadeIn">
+                <FileX className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{exportError}</span>
               </div>
             )}
           </div>
 
-          {/* Compilation grid preview (lg: 7) */}
+          {/* Info panel */}
           <div className="lg:col-span-12 xl:col-span-7 bg-zinc-900/40 border border-zinc-800 p-5 rounded-xl space-y-4">
-            <h2 className="text-xs font-bold font-mono text-zinc-400 tracking-wider uppercase">Lead compilation preview</h2>
-            
-            <div className="bg-zinc-950 border border-zinc-855 rounded-xl p-5 aspect-video flex flex-col justify-between">
-              {isGenerating ? (
-                <div className="flex-1 flex flex-col items-center justify-center space-y-3">
-                  <div className="w-9 h-9 border border-dotted border-red-500 animate-spin rounded-full" />
-                  <span className="text-xs font-mono text-red-400 animate-pulse uppercase">Assembling row matrices from camera tracking SQL blocks...</span>
-                </div>
-              ) : showFinished ? (
-                <div className="flex-1 flex flex-col justify-between">
-                  <div className="space-y-2">
-                    <span className="text-[10px] text-zinc-500 font-mono block">SCHEMA PREVIEW // BINARY DETECTED</span>
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-8 h-8 text-emerald-400 shrink-0" />
-                      <div>
-                        <h4 className="text-xs font-bold text-white uppercase font-mono">
-                          {selectedRepType.toUpperCase()}_REPORT_MAY2026.xlsx
-                        </h4>
-                        <p className="text-[10px] text-zinc-500 font-mono">Excel Sheet · 14 rows structured · 4 columns checked</p>
-                      </div>
-                    </div>
-                  </div>
+            <h2 className="text-xs font-bold font-mono text-zinc-400 tracking-wider uppercase">What you can export</h2>
 
-                  {/* Mock spreadsheet grid */}
-                  <div className="border border-zinc-850 rounded p-2 space-y-1.5 text-[9px] font-mono text-zinc-500 select-none bg-zinc-900/45">
-                    <div className="flex items-center justify-between border-b border-zinc-800/80 pb-1 font-bold">
-                      <span>ROW_ID</span>
-                      <span>SUBJECT_ID</span>
-                      <span>ACCURACY_MATCH</span>
-                      <span>CLOCK_IN_TS</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>001</span>
-                      <span>EMP001</span>
-                      <span>99.8%</span>
-                      <span>08:45 AM</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>002</span>
-                      <span>EMP002</span>
-                      <span>96.2%</span>
-                      <span>09:32 AM</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>003</span>
-                      <span>EMP003</span>
-                      <span>98.9%</span>
-                      <span>08:50 AM</span>
-                    </div>
-                  </div>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3 p-3 bg-zinc-950 border border-zinc-800 rounded-lg">
+                <FileText className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-xs font-bold text-white">Attendance Report</h4>
+                  <p className="text-[10px] text-zinc-500 font-sans mt-0.5">Every employee's check-in and check-out time, their status (Present / Late / Absent), and total hours for the selected date range.</p>
                 </div>
-              ) : (
-                <div className="flex-1 flex flex-col items-center justify-center space-y-2 text-zinc-500 font-mono text-center">
-                  <FileSpreadsheet className="w-10 h-10 text-zinc-700 stroke-[1.5]" />
-                  <h4 className="text-xs font-bold uppercase">PREVIEW ARCHIVE EMPTY</h4>
-                  <p className="text-[10px] max-w-xs leading-relaxed font-sans">Fill the parameter configuration form and hit compilation trigger to preview table indices.</p>
+              </div>
+              <div className="flex items-start gap-3 p-3 bg-zinc-950 border border-zinc-800 rounded-lg">
+                <FileText className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-xs font-bold text-white">Expense Report</h4>
+                  <p className="text-[10px] text-zinc-500 font-sans mt-0.5">All expense claims submitted by employees — category, amount, currency, status (Pending / Approved / Rejected), and description.</p>
                 </div>
-              )}
+              </div>
+              <div className="flex items-start gap-3 p-3 bg-zinc-950 border border-zinc-800 rounded-lg">
+                <FileText className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-xs font-bold text-white">Canteen Report</h4>
+                  <p className="text-[10px] text-zinc-500 font-sans mt-0.5">Daily canteen meal records for the selected period — employee name, date, meal type, and amount.</p>
+                </div>
+              </div>
             </div>
           </div>
 

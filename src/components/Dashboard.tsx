@@ -45,7 +45,7 @@ export default function Dashboard({
       {/* Upper Welcome Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-zinc-800/80 pb-5">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white font-sans sm:text-3xl">Command Center</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-white font-sans sm:text-3xl">Dashboard</h1>
           <p className="text-xs text-zinc-400 mt-1 font-mono">
             System status: <span className="text-emerald-400 font-semibold animate-pulse">● OPERATIONAL</span>
           </p>
@@ -81,12 +81,12 @@ export default function Dashboard({
           title="Click to view all Present employees"
         >
           <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-xs font-mono tracking-wider">01 / PRESENT</span>
+            <span className="text-xs font-mono tracking-wider">Present</span>
             <UserCheck className="w-4.5 h-4.5 text-emerald-400" />
           </div>
           <div className="mt-4">
             <span className="text-3xl font-extrabold text-white tracking-tight">{present}</span>
-            <p className="text-[10px] text-zinc-500 font-mono mt-0.5">{presentPct}% of roster capacity</p>
+            <p className="text-[10px] text-zinc-500 font-mono mt-0.5">{presentPct}% of total staff</p>
           </div>
         </motion.div>
 
@@ -99,13 +99,13 @@ export default function Dashboard({
           title="Click to view all Late employees"
         >
           <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-xs font-mono tracking-wider">02 / LATE</span>
+            <span className="text-xs font-mono tracking-wider">Late</span>
             <Zap className="w-4.5 h-4.5 text-amber-500" />
           </div>
           <div className="mt-4">
             <span className="text-3xl font-extrabold text-white tracking-tight">{late}</span>
             <span className="text-xs text-amber-500 font-mono ml-2 font-semibold">-{latePct}%</span>
-            <p className="text-[10px] text-zinc-500 font-mono mt-0.5">Grace threshold exceeded</p>
+            <p className="text-[10px] text-zinc-500 font-mono mt-0.5">Arrived late</p>
           </div>
         </motion.div>
 
@@ -118,13 +118,13 @@ export default function Dashboard({
           title="Click to view all Absent employees"
         >
           <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-xs font-mono tracking-wider">03 / ABSENT</span>
+            <span className="text-xs font-mono tracking-wider">Absent</span>
             <UserMinus className="w-4.5 h-4.5 text-rose-500" />
           </div>
           <div className="mt-4">
             <span className="text-3xl font-extrabold text-white tracking-tight">{absent}</span>
             <span className="text-xs text-rose-500 font-mono ml-2">({absentPct}%)</span>
-            <p className="text-[10px] text-zinc-500 font-mono mt-0.5">Unexcused missing logs</p>
+            <p className="text-[10px] text-zinc-500 font-mono mt-0.5">Not checked in</p>
           </div>
         </motion.div>
 
@@ -137,7 +137,7 @@ export default function Dashboard({
           title="Click to view Leave Approvals panel"
         >
           <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-xs font-mono tracking-wider">04 / ON LEAVE</span>
+            <span className="text-xs font-mono tracking-wider">On Leave</span>
             <Moon className="w-4.5 h-4.5 text-blue-400" />
           </div>
           <div className="mt-4">
@@ -147,7 +147,7 @@ export default function Dashboard({
                 {pendingLeavesCount} pending
               </span>
             )}
-            <p className="text-[10px] text-zinc-500 font-mono mt-0.5">Approved temporary leaves</p>
+            <p className="text-[10px] text-zinc-500 font-mono mt-0.5">On leave today</p>
           </div>
         </motion.div>
 
@@ -160,12 +160,12 @@ export default function Dashboard({
           title="Click to view Live CCTV monitoring feeds"
         >
           <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-xs font-mono tracking-wider">05 / CAMERA ALERTS</span>
+            <span className="text-xs font-mono tracking-wider">Camera Alerts</span>
             <AlertTriangle className={`w-4.5 h-4.5 ${activeAlerts.length > 0 ? 'text-red-500 animate-bounce' : 'text-zinc-500'}`} />
           </div>
           <div className="mt-4">
             <span className="text-3xl font-extrabold text-white tracking-tight">{activeAlerts.length}</span>
-            <p className="text-[10px] text-zinc-500 font-mono mt-0.5">Active sensor event flags</p>
+            <p className="text-[10px] text-zinc-500 font-mono mt-0.5">Active alerts</p>
           </div>
         </motion.div>
       </div>
@@ -277,13 +277,13 @@ export default function Dashboard({
             <div className="flex items-center justify-between mb-4 pb-2 border-b border-zinc-800/60">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-[#ef4444]" />
-                <h3 className="font-bold tracking-tight text-white font-mono text-xs uppercase">Recent Camera Track Activity</h3>
+                <h3 className="font-bold tracking-tight text-white font-mono text-xs uppercase">Recent Activity</h3>
               </div>
               <button
                 onClick={() => onNavigate('Live')}
                 className="text-xs text-[#ef4444] hover:text-[#f87171] font-semibold flex items-center gap-1 hover:underline font-mono"
               >
-                LIVE RENDERER <ArrowRight className="w-3 h-3" />
+                View Live <ArrowRight className="w-3 h-3" />
               </button>
             </div>
 
@@ -383,8 +383,8 @@ export default function Dashboard({
                   className="flex flex-col items-center justify-center p-4 bg-zinc-900 border border-zinc-800 rounded-xl hover:border-zinc-700 hover:bg-zinc-800/50 transition text-center group"
                 >
                   <Users2 className="w-5 h-5 text-teal-400 group-hover:scale-110 transition mb-2" />
-                  <span className="text-xs text-zinc-200 font-semibold">Personnel DB</span>
-                  <span className="text-[9px] text-zinc-500 font-mono mt-1">Add & Modify Staff</span>
+                  <span className="text-xs text-zinc-200 font-semibold">Staff List</span>
+                  <span className="text-[9px] text-zinc-500 font-mono mt-1">View & edit staff</span>
                 </button>
               </div>
             </div>
@@ -393,7 +393,7 @@ export default function Dashboard({
           {/* Quick Admin More Tools Launch */}
           <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-5">
             <h3 className="text-xs font-bold tracking-widest text-[#ef4444] font-mono uppercase mb-3">
-              Admin Integrations
+              Quick Links
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-center text-[10px] font-mono text-zinc-300">
               <button
@@ -422,7 +422,7 @@ export default function Dashboard({
                 className="p-2.5 bg-zinc-950 border border-zinc-800/80 rounded-lg hover:border-[#61dafb]/40 transition flex flex-col items-center gap-1.5 text-zinc-300 hover:text-white"
               >
                 <Smartphone className="w-3.5 h-3.5 text-[#61dafb]" />
-                <span>Mobile SDK</span>
+                <span>Mobile App</span>
               </button>
               <button
                 onClick={() => onNavigateMoreTool('Productivity')}

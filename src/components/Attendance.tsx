@@ -93,8 +93,8 @@ export default function Attendance({ employees, onNavigate, initialFilter }: Att
       {/* Tab Navigation header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-zinc-800/80 pb-5">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white font-sans sm:text-3xl">Attendance Ledger</h1>
-          <p className="text-xs text-zinc-400 mt-1 font-mono">Biometric face match audit registers</p>
+          <h1 className="text-2xl font-bold tracking-tight text-white font-sans sm:text-3xl">Attendance</h1>
+          <p className="text-xs text-zinc-400 mt-1 font-mono">Check-in and check-out records</p>
         </div>
 
         {/* Dynamic Buttons for 3 Tabs */}
@@ -107,7 +107,7 @@ export default function Attendance({ employees, onNavigate, initialFilter }: Att
                 : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
             }`}
           >
-            DAILY LOG
+            Daily
           </button>
           <button
             onClick={() => setActiveTab('monthly')}
@@ -117,7 +117,7 @@ export default function Attendance({ employees, onNavigate, initialFilter }: Att
                 : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
             }`}
           >
-            MONTHLY HEATMAP
+            Monthly
           </button>
           <button
             onClick={() => setActiveTab('all-staff')}
@@ -127,7 +127,7 @@ export default function Attendance({ employees, onNavigate, initialFilter }: Att
                 : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
             }`}
           >
-            ROSTER STATS
+            Staff Stats
           </button>
         </div>
       </div>
@@ -179,7 +179,7 @@ export default function Attendance({ employees, onNavigate, initialFilter }: Att
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-zinc-800 bg-zinc-950 text-[10px] text-zinc-500 font-mono uppercase tracking-wider">
-                    <th className="py-3.5 px-4 font-normal">Employee / Face ID</th>
+                    <th className="py-3.5 px-4 font-normal">Employee</th>
                     <th className="py-3.5 px-4 font-normal">Department</th>
                     <th className="py-3.5 px-4 font-normal">Status</th>
                     <th className="py-3.5 px-4 font-normal">In/Out Times</th>
@@ -191,7 +191,7 @@ export default function Attendance({ employees, onNavigate, initialFilter }: Att
                   {filteredDailyEmployees.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="py-8 text-center text-zinc-500 text-xs font-mono">
-                        No active records match the selected status filter pill or search query.
+                        No employees found for this filter.
                       </td>
                     </tr>
                   ) : (
@@ -241,12 +241,12 @@ export default function Attendance({ employees, onNavigate, initialFilter }: Att
                                 <span className="text-zinc-200 flex items-center gap-1">
                                   <Clock className="w-3 h-3 text-emerald-400" /> In: {emp.checkInTime}
                                 </span>
-                                <span className="text-[10px] text-zinc-500">Out: Pending checkout</span>
+                                <span className="text-[10px] text-zinc-500">Out: Not yet</span>
                               </div>
                             ) : emp.status === 'On Leave' ? (
-                              <span className="text-blue-400">Scheduled Sick/Casual</span>
+                              <span className="text-blue-400">On Leave</span>
                             ) : (
-                              <span className="text-zinc-600">— No Logs Scanned —</span>
+                              <span className="text-zinc-600">No record today</span>
                             )}
                           </td>
                           <td className="py-3.5 px-4 font-mono text-xs text-zinc-400">
@@ -259,7 +259,7 @@ export default function Attendance({ employees, onNavigate, initialFilter }: Att
                               }}
                               className="text-xs bg-zinc-950 text-[#ef4444] border border-zinc-800 hover:border-zinc-700 px-2.5 py-1 rounded hover:bg-zinc-900 transition font-mono"
                             >
-                              PROFILE SUMMARY
+                              View Profile
                             </button>
                           </td>
                         </tr>
@@ -378,12 +378,12 @@ export default function Attendance({ employees, onNavigate, initialFilter }: Att
         <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-5 space-y-6" id="all-staff-attendance-rates">
           <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b border-zinc-800 pb-3">
             <div>
-              <span className="text-xs font-bold text-[#ef4444] font-mono tracking-wider">MONTHLY COMPLIANCE RATING</span>
-              <p className="text-xs text-zinc-400">Detailed metric representation of team consistency scores</p>
+              <span className="text-xs font-bold text-[#ef4444] font-mono tracking-wider">Monthly Attendance Rate</span>
+              <p className="text-xs text-zinc-400">How often each employee was on time this month</p>
             </div>
             <div className="flex items-center gap-2 bg-zinc-950 px-3 py-1.5 rounded-lg border border-zinc-800 text-xs font-mono text-zinc-300">
               <Flame className="w-4 h-4 text-amber-500 animate-pulse" />
-              <span>Target Rate limit: <b className="text-white">90% compliance</b></span>
+              <span>Target: <b className="text-white">90% attendance</b></span>
             </div>
           </div>
 

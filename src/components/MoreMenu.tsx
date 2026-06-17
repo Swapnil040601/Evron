@@ -60,40 +60,40 @@ export default function MoreMenu({
       name: 'Shift Schedules',
       desc: 'Grace periods & staff count',
       icon: <Zap className="w-5 h-5 text-amber-400" />,
-      tag: 'ROSTERS'
+      tag: 'SCHEDULES'
     },
     {
       id: 'Holidays',
       name: 'Holidays Planner',
       desc: 'Annual scheduled leaves',
       icon: <Calendar className="w-5 h-5 text-blue-400" />,
-      tag: 'EXEMPTIONS'
+      tag: 'HOLIDAYS'
     },
     {
       id: 'Settings',
       name: 'Settings',
-      desc: 'App parameters & SMTP configuration',
+      desc: 'App settings & email setup',
       icon: <SettingsIcon className="w-5 h-5 text-zinc-400" />,
-      tag: 'PARAMS'
+      tag: 'SETTINGS'
     },
     {
       id: 'Fire',
-      name: 'Thermal / Fire',
-      desc: 'Incident status screen & logs',
+      name: 'Fire Alerts',
+      desc: 'Fire and safety incident logs',
       icon: <Flame className="w-5 h-5 text-rose-500" />,
-      tag: 'INCIDENTS'
+      tag: 'SAFETY'
     },
     {
       id: 'Secured',
-      name: 'Secured Gates',
-      desc: 'Portals lock state & access log',
+      name: 'Gate Access',
+      desc: 'Door lock status and access log',
       icon: <ShieldAlert className="w-5 h-5 text-teal-400" />,
-      tag: 'BYPASS'
+      tag: 'ACCESS'
     },
     {
       id: 'Reports',
-      name: 'Reports Engine',
-      desc: 'Excel and XLS summary reports',
+      name: 'Reports',
+      desc: 'Download attendance and expense reports',
       icon: <FileSpreadsheet className="w-5 h-5 text-pink-400" />,
       tag: 'EXPORT'
     },
@@ -102,7 +102,7 @@ export default function MoreMenu({
       name: 'Productivity',
       desc: 'Location tracking, app monitoring & camera feed',
       icon: <ShieldAlert className="w-5 h-5 text-red-500 animate-pulse" />,
-      tag: 'COMPLIANCE'
+      tag: 'TRACKING'
     }
   ];
 
@@ -117,7 +117,7 @@ export default function MoreMenu({
           id="back-to-tools-btn"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          BACK TO ADMIN TOOLS
+          Back
         </button>
 
         <div className="bg-zinc-905 w-full">
@@ -158,8 +158,8 @@ export default function MoreMenu({
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-zinc-800/80 pb-5">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white font-sans sm:text-3xl">Administrative Ecosystem</h1>
-          <p className="text-xs text-zinc-400 mt-1 font-mono">Consolidated terminal utilities and auxiliary micro-services</p>
+          <h1 className="text-2xl font-bold tracking-tight text-white font-sans sm:text-3xl">Admin Tools</h1>
+          <p className="text-xs text-zinc-400 mt-1 font-mono">All admin tools in one place</p>
         </div>
       </div>
 
