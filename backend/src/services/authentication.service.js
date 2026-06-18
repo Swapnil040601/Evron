@@ -43,7 +43,7 @@ async function verifyRecaptcha(token, secretKey) {
 
 export const AuthenticationService = {
   login: async (fastify, db, data) => {
-    const { email, password, recaptcha_token } = data;
+    const { email, password, recaptcha_token, location_enabled, is_developer_mode } = data;
 
     if (!email || !password) throw new Error("Email & password required");
 
@@ -67,6 +67,17 @@ export const AuthenticationService = {
 
     const match = await bcrypt.compare(password, user.password);
     if (!match) throw new Error("Invalid credentials");
+
+    // Device security enforcement for non-admin users
+    const isStaff = user.role === "staff" || user.role === "user";
+    if (isStaff) {
+      if (is_developer_mode === true) {
+        throw new Error("Login blocked: Developer Mode is enabled on your device. Disable it in Settings to proceed.");
+      }
+      if (location_enabled === false) {
+        throw new Error("Login blocked: Location services must be enabled. Turn on GPS/Location in Settings to proceed.");
+      }
+    }
 
     const token = fastify.jwt.sign(
       { id: user.id, email: user.email, role: user.role },

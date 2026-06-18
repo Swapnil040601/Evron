@@ -7,6 +7,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.location.LocationManager;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.provider.Settings;
@@ -77,6 +78,21 @@ public class DeviceInfoPlugin extends Plugin {
             result.put("wifiSsid", ssid);
         } catch (Exception e) {
             result.put("wifiSsid", (Object) null);
+        }
+
+        // ── Location Services Enabled ─────────────────────────────────────────
+        try {
+            LocationManager lm = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
+            boolean locationEnabled = false;
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                locationEnabled = lm.isLocationEnabled();
+            } else {
+                locationEnabled = lm.isProviderEnabled(LocationManager.GPS_PROVIDER)
+                        || lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+            }
+            result.put("locationEnabled", locationEnabled);
+        } catch (Exception e) {
+            result.put("locationEnabled", false);
         }
 
         // ── Developer Mode ────────────────────────────────────────────────────

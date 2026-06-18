@@ -161,15 +161,26 @@ class ApiService {
   }
 
   // Login handler
-  public async login(email: string, pass: string, recaptchaToken = ''): Promise<{ token: string; user: UserProfile }> {
+  public async login(
+    email: string,
+    pass: string,
+    recaptchaToken = '',
+    deviceFlags?: { location_enabled: boolean; is_developer_mode: boolean }
+  ): Promise<{ token: string; user: UserProfile }> {
     if (this.config.useLive) {
       const response = await fetch(`${this.config.baseUrl}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: pass, recaptcha_token: recaptchaToken })
+        body: JSON.stringify({
+          email,
+          password: pass,
+          recaptcha_token: recaptchaToken,
+          ...(deviceFlags ?? {}),
+        })
       });
       if (!response.ok) {
-        throw new Error('Wrong email or password. Please try again.');
+        const errData = await response.json().catch(() => ({}));
+        throw new Error((errData as any).message || 'Wrong email or password. Please try again.');
       }
       const data = await response.json();
       this.setToken(data.token);

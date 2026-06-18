@@ -11,8 +11,8 @@ export const ExpenseService = {
           `SELECT walk_distance_m FROM employee_locations WHERE user_id = $1`,
           [userId]
         );
-        if (locRow.rows[0]?.walk_distance_m != null) {
-          gpsWalkKm = parseFloat((locRow.rows[0].walk_distance_m / 1000).toFixed(3));
+        if ((locRow || [])[0]?.walk_distance_m != null) {
+          gpsWalkKm = parseFloat(((locRow[0].walk_distance_m) / 1000).toFixed(3));
         }
       }
     } catch {}
@@ -24,7 +24,7 @@ export const ExpenseService = {
       RETURNING *
     `, [userId, category, amount, currency || 'INR', expense_date, description || null, receipt_path || null, gpsWalkKm]);
 
-    return result.rows[0];
+    return (result || [])[0];
   },
 
   getMy: async (db, userId) => {
@@ -38,7 +38,7 @@ export const ExpenseService = {
       WHERE e.user_id = $1
       ORDER BY e.created_at DESC
     `, [userId]);
-    return result.rows;
+    return result || [];
   },
 
   getAll: async (db, filters = {}) => {
@@ -72,7 +72,7 @@ export const ExpenseService = {
       ${whereClause}
       ORDER BY e.created_at DESC
     `, values);
-    return result.rows;
+    return result || [];
   },
 
   updateStatus: async (db, expenseId, status, adminNote, reviewerId) => {
@@ -82,7 +82,7 @@ export const ExpenseService = {
       WHERE id = $4
       RETURNING *
     `, [status, adminNote || null, reviewerId, expenseId]);
-    return result.rows[0];
+    return (result || [])[0];
   },
 
   uploadReceipt: async (db, expenseId, userId, receiptPath) => {
@@ -91,6 +91,6 @@ export const ExpenseService = {
       WHERE id = $2 AND user_id = $3
       RETURNING *
     `, [receiptPath, expenseId, userId]);
-    return result.rows[0];
+    return (result || [])[0];
   }
 };

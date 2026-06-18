@@ -4,6 +4,8 @@ export interface DeviceInfoResult {
   /** Stable Android device identifier (Settings.Secure.ANDROID_ID) */
   deviceId: string | null;
   wifiSsid: string | null;
+  /** True when GPS or network location provider is enabled on the device */
+  locationEnabled: boolean;
   isDeveloperMode: boolean;
   hasUsagePermission: boolean;
   /** Total times employee opened a non-Evron app since midnight */
@@ -22,6 +24,7 @@ const DeviceInfoNative = registerPlugin<DeviceInfoPlugin>('DeviceInfo');
 const fallback: DeviceInfoResult = {
   deviceId: null,
   wifiSsid: null,
+  locationEnabled: true,
   isDeveloperMode: false,
   hasUsagePermission: false,
   otherAppOpens: 0,

@@ -8,6 +8,8 @@ import { apiService } from '../services/api';
 import { ShieldCheck, AlertTriangle, Eye, EyeOff, LogIn, Sun, Moon, Fingerprint } from 'lucide-react';
 import { UserProfile } from '../types';
 import { BiometricAuth } from '@aparajita/capacitor-biometric-auth';
+import { getDeviceInfo } from '../plugins/DeviceInfo';
+import { Capacitor } from '@capacitor/core';
 
 interface LoginProps {
   onLoginSuccess: (user: UserProfile) => void;
@@ -75,7 +77,22 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     setIsConnecting(true);
     setErrorMessage(null);
     try {
-      const res = await apiService.login(email, password);
+      // Device security checks (Android only)
+      let deviceFlags = { location_enabled: true, is_developer_mode: false };
+      if (Capacitor.isNativePlatform()) {
+        const info = await getDeviceInfo();
+        if (info.isDeveloperMode) {
+          setErrorMessage('Developer Mode is enabled on your device. Please disable it in Settings to login.');
+          return;
+        }
+        if (!info.locationEnabled) {
+          setErrorMessage('Location services are turned off. Please enable GPS/Location in Settings to login.');
+          return;
+        }
+        deviceFlags = { location_enabled: info.locationEnabled, is_developer_mode: info.isDeveloperMode };
+      }
+
+      const res = await apiService.login(email, password, '', deviceFlags);
       const token = localStorage.getItem('evron_jwt_token');
       if (token) localStorage.setItem('evron_biometric_token', token);
       onLoginSuccess(res.user);
