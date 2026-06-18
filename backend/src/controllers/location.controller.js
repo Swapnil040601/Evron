@@ -28,6 +28,16 @@ export const LocationController = {
     }
   },
 
+  getMyLocation: async (req, reply) => {
+    try {
+      const rows = await LocationService.getLocationsByUserId(req.db, req.user.id);
+      return rows;
+    } catch (err) {
+      req.log.error(err);
+      return reply.code(500).send({ message: "Failed to fetch location" });
+    }
+  },
+
   getLocationLogs: async (req, reply) => {
     try {
       const { user_id, from, to, limit } = req.query;
@@ -41,8 +51,8 @@ export const LocationController = {
 
   exportLocationLogs: async (req, reply) => {
     try {
-      const { from, to } = req.query;
-      const csv = await LocationService.exportLocationLogs(req.db, { from, to });
+      const { from, to, user_id } = req.query;
+      const csv = await LocationService.exportLocationLogs(req.db, { from, to, userId: user_id });
       const filename = `location-logs-${new Date().toISOString().slice(0, 10)}.csv`;
       reply.header('Content-Type', 'text/csv; charset=utf-8');
       reply.header('Content-Disposition', `attachment; filename="${filename}"`);

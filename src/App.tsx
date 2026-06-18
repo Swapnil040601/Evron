@@ -45,6 +45,9 @@ import { ShieldAlert } from 'lucide-react';
 import AuraBackground from './components/AuraBackground';
 import ProductivityComplianceHub from './components/ProductivityComplianceHub';
 
+const isAdminRole = (role?: string) =>
+  role === 'Admin' || role === 'admin' || role === 'super_admin';
+
 export default function App() {
   // Navigation Router State for Admin/Super Admin
   const [activeTab, setActiveTab] = useState<'Dashboard' | 'Attendance' | 'Leave' | 'Expenses' | 'More' | 'Day Summary' | 'Users' | 'Productivity'>('Dashboard');
@@ -154,7 +157,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (currentUser && currentUser.role !== 'user') {
+    if (currentUser && isAdminRole(currentUser.role)) {
       loadAdminData();
     }
   }, [currentUser]);
@@ -358,8 +361,8 @@ export default function App() {
     );
   }
 
-  // Routing matrix based on profile role check
-  if (currentUser.role === 'user') {
+  // Employees (staff / user role) get their own portal — no cross-employee data
+  if (!isAdminRole(currentUser.role)) {
     return <UserPortal currentUser={currentUser} onLogout={handleLogout} />;
   }
 
