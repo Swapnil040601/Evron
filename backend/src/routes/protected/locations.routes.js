@@ -1,15 +1,37 @@
 import { LocationController } from "../../controllers/location.controller.js";
 
+const ADMIN_ROLES = new Set(['Admin', 'admin', 'super_admin']);
+const isAdmin = (role) => ADMIN_ROLES.has(role);
+
 export default async function locationsRoutes(fastify, opts) {
-  // Employee posts their own location (called every 30s from the app)
+  // Every employee posts their own location (30-second heartbeat)
   fastify.post("/me/location", LocationController.upsertMyLocation);
 
-  // Admin/super_admin reads all employee locations (latest position)
-  fastify.get("/employee-locations", LocationController.getAllLocations);
+  // Latest position per employee
+  // Admin/super_admin → all employees; staff → only own record
+  fastify.get("/employee-locations", async (req, reply) => {
+    if (isAdmin(req.user.role)) {
+      return LocationController.getAllLocations(req, reply);
+    }
+    // Staff: return only their own location as a single-element array
+    return LocationController.getMyLocation(req, reply);
+  });
 
-  // Full GPS history log (every 30s ping stored)
-  fastify.get("/location-logs", LocationController.getLocationLogs);
+  // Full GPS history (paginated)
+  // Admin → any user_id; staff → forced to own user_id
+  fastify.get("/location-logs", async (req, reply) => {
+    if (!isAdmin(req.user.role)) {
+      req.query.user_id = String(req.user.id);
+    }
+    return LocationController.getLocationLogs(req, reply);
+  });
 
-  // CSV export of full location history
-  fastify.get("/location-logs/export", LocationController.exportLocationLogs);
+  // CSV export
+  // Admin → all / selected user; staff → own data only
+  fastify.get("/location-logs/export", async (req, reply) => {
+    if (!isAdmin(req.user.role)) {
+      req.query.user_id = String(req.user.id);
+    }
+    return LocationController.exportLocationLogs(req, reply);
+  });
 }

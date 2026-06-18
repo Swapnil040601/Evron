@@ -45,7 +45,7 @@ export const LocationService = {
       device_id ?? null
     ]);
 
-    // 2. Append to full history (fire-and-forget — don't fail the request if this errors)
+    // 2. Append to full history (fire-and-forget)
     db.query(`
       INSERT INTO location_logs
         (user_id, device_id, latitude, longitude, accuracy, wifi_ssid, network_type,
@@ -65,7 +65,22 @@ export const LocationService = {
       detail
     ]).catch(() => {});
 
-    return result.rows[0];
+    // TypeORM db.query() returns rows as a plain array (not {rows: []})
+    return (result || [])[0];
+  },
+
+  getLocationsByUserId: async (db, userId) => {
+    const result = await db.query(`
+      SELECT
+        el.id, el.user_id, el.device_id, el.latitude, el.longitude,
+        el.accuracy, el.wifi_ssid, el.network_type, el.is_developer_mode,
+        el.walk_distance_m, el.other_app_opens, el.app_opens_detail, el.updated_at,
+        u.name AS user_name, u.code AS employee_code, u.avatar
+      FROM employee_locations el
+      JOIN users u ON u.id = el.user_id
+      WHERE el.user_id = $1 AND u.deleted_at IS NULL
+    `, [userId]);
+    return result || [];
   },
 
   getAllLocations: async (db) => {
@@ -92,11 +107,11 @@ export const LocationService = {
       WHERE u.deleted_at IS NULL
       ORDER BY el.updated_at DESC
     `);
-    return result.rows;
+    return result || [];
   },
 
   getLocationLogs: async (db, { userId, from, to, limit = 500 } = {}) => {
-    const conditions = [];
+    const conditions = ['u.deleted_at IS NULL'];
     const params = [];
     let idx = 1;
 
@@ -113,7 +128,7 @@ export const LocationService = {
       params.push(new Date(to));
     }
 
-    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const where = `WHERE ${conditions.join(' AND ')}`;
     params.push(Math.min(Number(limit) || 500, 2000));
 
     const result = await db.query(`
@@ -136,20 +151,23 @@ export const LocationService = {
         u.department
       FROM location_logs ll
       JOIN users u ON u.id = ll.user_id
-      WHERE u.deleted_at IS NULL
-      ${conditions.length ? `AND ${conditions.join(' AND ')}` : ''}
+      ${where}
       ORDER BY ll.logged_at DESC
       LIMIT $${idx}
     `, params);
 
-    return result.rows;
+    return result || [];
   },
 
-  exportLocationLogs: async (db, { from, to } = {}) => {
-    const conditions = [];
+  exportLocationLogs: async (db, { from, to, userId } = {}) => {
+    const conditions = ['u.deleted_at IS NULL'];
     const params = [];
     let idx = 1;
 
+    if (userId) {
+      conditions.push(`ll.user_id = $${idx++}`);
+      params.push(userId);
+    }
     if (from) {
       conditions.push(`ll.logged_at >= $${idx++}`);
       params.push(new Date(from));
@@ -158,6 +176,8 @@ export const LocationService = {
       conditions.push(`ll.logged_at <= $${idx++}`);
       params.push(new Date(to));
     }
+
+    const where = `WHERE ${conditions.join(' AND ')}`;
 
     const result = await db.query(`
       SELECT
@@ -177,11 +197,12 @@ export const LocationService = {
         ll.app_opens_detail
       FROM location_logs ll
       JOIN users u ON u.id = ll.user_id
-      WHERE u.deleted_at IS NULL
-      ${conditions.length ? `AND ${conditions.join(' AND ')}` : ''}
+      ${where}
       ORDER BY ll.logged_at DESC
       LIMIT 10000
     `, params);
+
+    const rows = result || [];
 
     const header = [
       'Timestamp', 'Employee Name', 'Employee Code', 'Department',
@@ -190,7 +211,7 @@ export const LocationService = {
       'Walk Distance (m)', 'Other App Opens', 'Apps Used'
     ].join(',');
 
-    const rows = result.rows.map(r => {
+    const csvRows = rows.map(r => {
       const appsUsed = r.app_opens_detail
         ? Object.entries(r.app_opens_detail)
             .sort((a, b) => b[1] - a[1])
@@ -215,6 +236,6 @@ export const LocationService = {
       ].join(',');
     });
 
-    return [header, ...rows].join('\n');
+    return [header, ...csvRows].join('\n');
   }
 };
