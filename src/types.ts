@@ -189,7 +189,8 @@ export interface FeatureFlags {
 export type EmployeeStatus = 'Present' | 'Absent' | 'Late' | 'On Leave';
 
 export interface Employee {
-  id: string;
+  id: string;        // employee code (e.g. ENIN2702) — used as display key
+  dbId?: number;     // database integer user id — used for API filters
   name: string;
   avatar: string;
   role: string;

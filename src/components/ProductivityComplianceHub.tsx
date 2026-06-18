@@ -41,6 +41,67 @@ interface ProductivityComplianceHubProps {
 
 const FORBIDDEN_APP_NAMES = ['whatsapp', 'instagram', 'clash', 'fakegps', 'vpn', 'tor', 'pubg', 'freefire'];
 
+// Group flat location-log rows (from backend) into per-user objects with events
+function groupLocationLogs(rows: any[]) {
+  const byUser = new Map<number, any>();
+  for (const row of rows) {
+    const uid = row.user_id;
+    if (!byUser.has(uid)) {
+      byUser.set(uid, {
+        user_id: uid,
+        user_name: row.user_name,
+        employee_code: row.employee_code,
+        department: row.department,
+        total_pings: 0,
+        events: [],
+      });
+    }
+    const user = byUser.get(uid)!;
+    user.total_pings++;
+    user.events.push({
+      type: 'ping',
+      start: row.logged_at,
+      end: row.logged_at,
+      lat: parseFloat(row.latitude),
+      lng: parseFloat(row.longitude),
+      wifi_ssid: row.wifi_ssid,
+      accuracy: row.accuracy,
+      is_developer_mode: row.is_developer_mode,
+      walk_distance_m: row.walk_distance_m,
+      ping_count: 1,
+    });
+  }
+  // Within each user, detect stays (≥10 min within ~50m radius)
+  for (const user of byUser.values()) {
+    user.events = detectStayEvents(user.events);
+  }
+  return Array.from(byUser.values());
+}
+
+function detectStayEvents(pings: any[]) {
+  if (pings.length === 0) return [];
+  const dist = (a: any, b: any) => {
+    const dy = (a.lat - b.lat) * 111320;
+    const dx = (a.lng - b.lng) * 108000;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+  const result: any[] = [];
+  let i = 0;
+  while (i < pings.length) {
+    let j = i + 1;
+    while (j < pings.length && dist(pings[i], pings[j]) <= 50) j++;
+    const durationMs = new Date(pings[i].start).getTime() - new Date(pings[j - 1].start).getTime();
+    const durationMin = Math.round(Math.abs(durationMs) / 60000);
+    if (j - i >= 2 && durationMin >= 10) {
+      result.push({ ...pings[i], type: 'stay', end: pings[j - 1].start, duration_minutes: durationMin, ping_count: j - i });
+    } else {
+      for (let k = i; k < j; k++) result.push({ ...pings[k], type: 'ping', duration_minutes: 0 });
+    }
+    i = j;
+  }
+  return result;
+}
+
 export default function ProductivityComplianceHub({ employees, onTriggerAlert }: ProductivityComplianceHubProps) {
   // Navigation sub-tabs
   const [activeSubTab, setActiveSubTab] = useState<'tracker' | 'excel_export' | 'gps_history' | 'location_logs'>('tracker');
@@ -73,15 +134,15 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
   const [isLoadingLocationLogs, setIsLoadingLocationLogs] = useState(false);
   const [locLogFrom, setLocLogFrom] = useState(() => new Date().toISOString().slice(0, 10));
   const [locLogTo, setLocLogTo] = useState(() => new Date().toISOString().slice(0, 10));
-  const [locLogUserId, setLocLogUserId] = useState<string>('');
+  const [locLogUserId, setLocLogUserId] = useState<string>(''); // stores dbId as string
 
   const fetchLocationLogs = async () => {
     setIsLoadingLocationLogs(true);
     try {
       const params: { from?: string; to?: string; user_id?: number } = { from: locLogFrom, to: locLogTo };
       if (locLogUserId) params.user_id = Number(locLogUserId);
-      const data = await apiService.getLocationLogs(params);
-      setLocationLogs(data);
+      const rows = await apiService.getLocationLogs(params);
+      setLocationLogs(groupLocationLogs(rows));
     } catch { setLocationLogs([]); }
     setIsLoadingLocationLogs(false);
   };
@@ -1272,7 +1333,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
                 <select value={locLogUserId} onChange={e => setLocLogUserId(e.target.value)}
                   className="bg-zinc-900 border border-zinc-700 text-white text-xs rounded-lg px-2 py-1.5 font-mono">
                   <option value="">All employees</option>
-                  {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                  {employees.map(e => <option key={e.id} value={e.dbId ?? ''}>{e.name}</option>)}
                 </select>
               </div>
               <button onClick={fetchLocationLogs}
@@ -1339,10 +1400,10 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
                                   ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                                   : 'bg-zinc-800 text-zinc-400'
                               }`}>
-                                {ev.type === 'stay' ? `Stay · ${ev.duration_minutes} min` : 'Moving'}
+                                {ev.type === 'stay' ? `Stay · ${ev.duration_minutes} min` : 'Ping'}
                               </span>
                               <span className="text-[10px] font-mono text-zinc-500">
-                                {new Date(ev.start).toLocaleTimeString()} → {new Date(ev.end).toLocaleTimeString()}
+                                {new Date(ev.start).toLocaleTimeString()}{ev.type === 'stay' ? ` → ${new Date(ev.end).toLocaleTimeString()}` : ''}
                               </span>
                             </div>
                             <p className="text-xs text-zinc-300 mt-1 font-mono">

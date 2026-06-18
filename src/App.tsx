@@ -221,6 +221,7 @@ export default function App() {
             : undefined;
           mappedEmp.push({
             id: empId,
+            dbId: user.id,
             name: user.name,
             avatar: user.avatar ? apiService.getFileUrl(user.avatar) : '',
             role: (user.role || 'staff').replace('_', ' ').toUpperCase(),

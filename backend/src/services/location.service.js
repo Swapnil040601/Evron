@@ -125,7 +125,7 @@ export const LocationService = {
     }
     if (to) {
       conditions.push(`ll.logged_at <= $${idx++}`);
-      params.push(new Date(to));
+      params.push(new Date(to + 'T23:59:59.999Z'));
     }
 
     const where = `WHERE ${conditions.join(' AND ')}`;
@@ -174,7 +174,7 @@ export const LocationService = {
     }
     if (to) {
       conditions.push(`ll.logged_at <= $${idx++}`);
-      params.push(new Date(to));
+      params.push(new Date(to + 'T23:59:59.999Z'));
     }
 
     const where = `WHERE ${conditions.join(' AND ')}`;
