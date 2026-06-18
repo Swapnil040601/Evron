@@ -10,6 +10,7 @@ import { UserProfile } from '../types';
 import { BiometricAuth } from '@aparajita/capacitor-biometric-auth';
 import { getDeviceInfo } from '../plugins/DeviceInfo';
 import { Capacitor } from '@capacitor/core';
+import { Geolocation } from '@capacitor/geolocation';
 
 interface LoginProps {
   onLoginSuccess: (user: UserProfile) => void;
@@ -81,15 +82,33 @@ export default function Login({ onLoginSuccess }: LoginProps) {
       let deviceFlags = { location_enabled: true, is_developer_mode: false };
       if (Capacitor.isNativePlatform()) {
         const info = await getDeviceInfo();
+
         if (info.isDeveloperMode) {
           setErrorMessage('Developer Mode is enabled on your device. Please disable it in Settings to login.');
           return;
         }
-        if (!info.locationEnabled) {
-          setErrorMessage('Location services are turned off. Please enable GPS/Location in Settings to login.');
+
+        // Request location permission — this shows the dialog on first launch.
+        // Some devices also report locationEnabled=false until the app has permission.
+        let perm = await Geolocation.checkPermissions();
+        if (perm.location === 'prompt' || perm.location === 'prompt-with-rationale') {
+          const req = await Geolocation.requestPermissions({ permissions: ['location'] });
+          perm = req;
+        }
+
+        if (perm.location !== 'granted') {
+          setErrorMessage('Location permission is required. Go to Settings → Apps → Evron → Permissions and enable Location.');
           return;
         }
-        deviceFlags = { location_enabled: info.locationEnabled, is_developer_mode: info.isDeveloperMode };
+
+        // After permission is confirmed, check the system location toggle.
+        const infoAfter = await getDeviceInfo();
+        if (!infoAfter.locationEnabled) {
+          setErrorMessage('Location services are off. Please turn on GPS / Location in device Settings to login.');
+          return;
+        }
+
+        deviceFlags = { location_enabled: true, is_developer_mode: false };
       }
 
       const res = await apiService.login(email, password, '', deviceFlags);
