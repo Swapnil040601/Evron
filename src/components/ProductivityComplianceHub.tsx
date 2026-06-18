@@ -1016,6 +1016,129 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
 
           {/* Right panel: Active live telemetry details, GPS Visualizer, and Canvas Map */}
           <div className="lg:col-span-8 flex flex-col gap-5">
+
+            {/* 0. Selected Employee Profile + Monitored Data Card */}
+            {selectedEmployeeObj && (
+              <div className="bg-zinc-900/60 border border-zinc-700 rounded-xl p-4 space-y-3">
+                {/* Header: avatar + identity */}
+                <div className="flex items-center gap-3 pb-3 border-b border-zinc-800">
+                  <div className="relative shrink-0">
+                    <img
+                      src={selectedEmployeeObj.avatar || `https://images.unsplash.com/photo-1540350390157-c74035bba300?w=120&auto=format&fit=facearea&facepad=2&q=80`}
+                      alt={selectedEmployeeObj.name}
+                      className="w-12 h-12 rounded-full border-2 border-red-500/40 object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                    <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-zinc-900 ${
+                      selectedEmpState.isDeveloperModeOn ? 'bg-red-500' :
+                      selectedEmpState.wifiBypassedOrAirplaneMode ? 'bg-amber-500' :
+                      selectedEmpState.offsiteMinutes > 0 ? 'bg-yellow-400' : 'bg-emerald-500'
+                    }`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-sm font-bold text-white font-sans">{selectedEmployeeObj.name}</h3>
+                      <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded uppercase border ${
+                        selectedEmployeeObj.status === 'Present' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' :
+                        selectedEmployeeObj.status === 'Late' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' :
+                        selectedEmployeeObj.status === 'Absent' ? 'bg-red-500/10 text-red-400 border-red-500/30' :
+                        'bg-zinc-800 text-zinc-400 border-zinc-700'
+                      }`}>{selectedEmployeeObj.status}</span>
+                    </div>
+                    <p className="text-[10px] text-zinc-400 font-mono mt-0.5">
+                      {selectedEmployeeObj.id} · {selectedEmployeeObj.role} · {selectedEmployeeObj.department}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <span className="text-[8px] font-mono text-zinc-500 uppercase block">Check-in</span>
+                    <span className="text-xs font-mono text-white font-bold">{selectedEmployeeObj.checkInTime || '—'}</span>
+                  </div>
+                </div>
+
+                {/* Monitored metrics grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {/* Location */}
+                  <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 space-y-0.5">
+                    <span className="text-[8px] font-mono text-zinc-500 uppercase block flex items-center gap-1">
+                      <MapPin className="w-2.5 h-2.5 text-red-400" /> Location
+                    </span>
+                    <span className="text-[9px] font-mono text-zinc-200 font-bold block">{selectedEmpState.activeLat.toFixed(4)}, {selectedEmpState.activeLng.toFixed(4)}</span>
+                    <span className={`text-[8px] font-mono font-bold ${selectedEmpState.offsiteMinutes > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                      {selectedEmpState.offsiteMinutes > 0 ? `⚠ Offsite ${(selectedEmpState.offsiteMinutes / 60).toFixed(1)}h` : '🎯 Onsite'}
+                    </span>
+                  </div>
+
+                  {/* Distance walked */}
+                  <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 space-y-0.5">
+                    <span className="text-[8px] font-mono text-zinc-500 uppercase block">Walked</span>
+                    <span className="text-lg font-bold font-mono text-white leading-none">{selectedEmpState.walkedKm}</span>
+                    <span className="text-[8px] font-mono text-zinc-500 uppercase">km today</span>
+                  </div>
+
+                  {/* Active App */}
+                  <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 space-y-0.5">
+                    <span className="text-[8px] font-mono text-zinc-500 uppercase block flex items-center gap-1">
+                      <Smartphone className="w-2.5 h-2.5" /> Active App
+                    </span>
+                    <span className={`text-[9px] font-mono font-bold block truncate ${selectedEmpState.isAppViolating ? 'text-rose-400' : 'text-zinc-200'}`}>
+                      {selectedEmpState.isDeveloperModeOn ? 'BLOCKED' : selectedEmpState.currentApp}
+                    </span>
+                    <span className={`text-[8px] font-mono font-bold ${selectedEmpState.isAppViolating ? 'text-rose-400' : 'text-emerald-400'}`}>
+                      {selectedEmpState.isAppViolating ? '⚠ Violation' : '✓ Safe'}
+                    </span>
+                  </div>
+
+                  {/* Security alerts */}
+                  <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 space-y-0.5">
+                    <span className="text-[8px] font-mono text-zinc-500 uppercase block flex items-center gap-1">
+                      <ShieldAlert className="w-2.5 h-2.5 text-red-400" /> Alerts
+                    </span>
+                    <span className={`text-lg font-bold font-mono leading-none ${selectedEmpState.securityAlertCount > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+                      {selectedEmpState.securityAlertCount}
+                    </span>
+                    <span className="text-[8px] font-mono text-zinc-500 uppercase">violations</span>
+                  </div>
+                </div>
+
+                {/* Second row: wifi + uniform + dev mode */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className={`flex items-center gap-2 p-2.5 rounded-lg border text-[9px] font-mono ${
+                    selectedEmpState.isSsidViolating ? 'bg-amber-500/5 border-amber-500/20 text-amber-400' : 'bg-zinc-950 border-zinc-800 text-zinc-300'
+                  }`}>
+                    <Wifi className={`w-3.5 h-3.5 shrink-0 ${selectedEmpState.isSsidViolating ? 'text-amber-400' : 'text-emerald-400'}`} />
+                    <div className="min-w-0">
+                      <span className="text-zinc-500 text-[8px] uppercase block">Network</span>
+                      <span className="truncate block font-bold">{selectedEmpState.wifiSsid || 'Unknown'}</span>
+                    </div>
+                  </div>
+                  <div className={`flex items-center gap-2 p-2.5 rounded-lg border text-[9px] font-mono ${
+                    !selectedEmpState.isWearingUniform ? 'bg-rose-500/5 border-rose-500/20 text-rose-400' : 'bg-zinc-950 border-zinc-800 text-zinc-300'
+                  }`}>
+                    <CheckCircle className={`w-3.5 h-3.5 shrink-0 ${selectedEmpState.isWearingUniform ? 'text-emerald-400' : 'text-rose-400'}`} />
+                    <div>
+                      <span className="text-zinc-500 text-[8px] uppercase block">Uniform</span>
+                      <span className="font-bold">{selectedEmpState.uniformComplianceRate}% compliant</span>
+                    </div>
+                  </div>
+                  <div className={`flex items-center gap-2 p-2.5 rounded-lg border text-[9px] font-mono ${
+                    selectedEmpState.isDeveloperModeOn ? 'bg-red-500/5 border-red-500/20 text-red-400 animate-pulse' : 'bg-zinc-950 border-zinc-800 text-zinc-300'
+                  }`}>
+                    <Lock className={`w-3.5 h-3.5 shrink-0 ${selectedEmpState.isDeveloperModeOn ? 'text-red-400' : 'text-emerald-400'}`} />
+                    <div>
+                      <span className="text-zinc-500 text-[8px] uppercase block">Dev Mode</span>
+                      <span className="font-bold">{selectedEmpState.isDeveloperModeOn ? '🚫 Detected / Locked' : '✓ Off / Clean'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status line */}
+                <div className="text-[9px] font-mono text-zinc-400 bg-zinc-950 border border-zinc-800 rounded px-3 py-1.5">
+                  <span className="text-zinc-600 uppercase mr-2">Status:</span>
+                  {selectedEmpState.statusDetail}
+                </div>
+              </div>
+            )}
+
             {/* 1. Vector Mapping Engine (Canvas representation of Bengaluru area) */}
             <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden relative">
               <div className="p-3 bg-zinc-900 border-b border-zinc-800/80 flex items-center justify-between font-mono text-[10px] text-zinc-400">
