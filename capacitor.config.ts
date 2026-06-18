@@ -8,6 +8,14 @@ const config: CapacitorConfig = {
     allowMixedContent: true,
     webContentsDebuggingEnabled: true,
   },
+  plugins: {
+    CapacitorUpdater: {
+      updateUrl: 'http://35.244.3.148:5193/api/updates/latest',
+      statsUrl: '',
+      autoUpdate: true,
+      resetWhenUpdate: false,
+    },
+  },
 };
 
 export default config;
