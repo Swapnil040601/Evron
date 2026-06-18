@@ -14,9 +14,6 @@ function buildWhere(filters = {}) {
   let i = 1;
 
   where.push(`u.deleted_at IS NULL`);
-  where.push(`u.status = $${i}`);
-  values.push('Active');
-  i++;
 
   if (filters.search) {
     where.push(`
@@ -33,13 +30,13 @@ function buildWhere(filters = {}) {
   }
 
   if (filters.status) {
-    where.push(`u.status = $${i}`);
+    where.push(`LOWER(u.status) = LOWER($${i})`);
     values.push(filters.status);
     i++;
   }
 
   if (filters.type) {
-    where.push(`u.type = $${i}`);
+    where.push(`LOWER(u.type) = LOWER($${i})`);
     values.push(filters.type);
     i++;
   }

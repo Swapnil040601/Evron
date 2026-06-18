@@ -256,13 +256,19 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
         } catch {}
 
         // Continuous watch — selfPos updates in real-time, geofenceCenter stays fixed
-        watchIdRef.current = await Geolocation.watchPosition(
+        const watchId = await Geolocation.watchPosition(
           { enableHighAccuracy: true },
           (position, err) => {
             if (cancelled || err || !position) return;
             setSelfPos({ lat: position.coords.latitude, lng: position.coords.longitude });
           }
         );
+        // Component may have unmounted while watchPosition was resolving
+        if (cancelled) {
+          Geolocation.clearWatch({ id: watchId });
+        } else {
+          watchIdRef.current = watchId;
+        }
       } catch (err) {
         console.warn('GPS init failed:', err);
       }
@@ -1368,7 +1374,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
                   <div className="bg-zinc-900 px-4 py-3 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5">
                       <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-bold text-red-400 shrink-0">
-                        {user.user_name?.charAt(0).toUpperCase()}
+                        {user.user_name?.charAt(0)?.toUpperCase() ?? '?'}
                       </div>
                       <div>
                         <p className="text-sm font-bold text-white leading-none">{user.user_name}</p>
@@ -1407,7 +1413,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
                               </span>
                             </div>
                             <p className="text-xs text-zinc-300 mt-1 font-mono">
-                              {ev.lat.toFixed(5)}, {ev.lng.toFixed(5)}
+                              {ev.lat != null && !isNaN(ev.lat) ? ev.lat.toFixed(5) : '—'}, {ev.lng != null && !isNaN(ev.lng) ? ev.lng.toFixed(5) : '—'}
                             </p>
                             {(ev.wifi_ssid || ev.last_app) && (
                               <p className="text-[10px] text-zinc-500 mt-0.5">

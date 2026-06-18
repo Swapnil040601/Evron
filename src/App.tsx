@@ -187,10 +187,10 @@ export default function App() {
       const [uRes, attRes] = await Promise.all([
         apiService.getUsersList({
           page: 1,
-          limit: 100,
+          limit: 200,
           search: '',
           department: '',
-          status: 'Active',
+          status: '',
           type: ''
         }),
         apiService.getAttendanceList({
