@@ -191,7 +191,7 @@ export default function App() {
           search: '',
           department: '',
           status: 'Active',
-          type: 'Staff'
+          type: ''
         }),
         apiService.getAttendanceList({
           from: today,
