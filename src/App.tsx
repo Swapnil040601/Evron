@@ -837,7 +837,7 @@ export default function App() {
             }`}
           >
             <FileSliders className={`w-4.5 h-4.5 mb-1 transition-transform duration-250 ${['More', 'Leave', 'Attendance', 'Day Summary', 'Users'].includes(activeTab) ? 'scale-110 text-red-500' : ''}`} />
-            <span className="text-[10px] font-semibold font-mono tracking-tight">Auxiliary</span>
+            <span className="text-[10px] font-semibold font-mono tracking-tight">Admin</span>
             {['More', 'Leave', 'Attendance', 'Day Summary', 'Users'].includes(activeTab) && (
               <motion.span 
                 layoutId="active-nav-glow" 

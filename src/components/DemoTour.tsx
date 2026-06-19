@@ -88,7 +88,7 @@ export default function DemoTour({ isOpen, onClose, onNavigateToTab }: DemoTourP
       description: 'Manage staff databases, import bulk CSV user logs, and build synchronized directory databases.',
       steps: [
         { time: 0, subtitle: 'Let\'s demonstrate the administrative database compiling and data sync system.', animationState: 'idle' },
-        { time: 2.5, subtitle: 'Administrators can open their Auxiliary tools and click "Reports Engine" to import records.', animationState: 'opening_reports' },
+        { time: 2.5, subtitle: 'Administrators can open their Admin tools and click "Reports Engine" to import records.', animationState: 'opening_reports' },
         { time: 5.5, subtitle: 'Clicking "Sync Simulator Registry" triggers real-time compiling of records across local states.', animationState: 'syncing_data' },
         { time: 8.5, subtitle: 'All staff data variables reconciled on local and server logs within 15 milliseconds!', animationState: 'sync_complete' }
       ]
@@ -113,7 +113,7 @@ export default function DemoTour({ isOpen, onClose, onNavigateToTab }: DemoTourP
       duration: 11,
       description: 'Meal scheduling and roster rules, shifts adjustments, and automated canteen token codes.',
       steps: [
-        { time: 0, subtitle: 'Under our auxiliary systems, the platform manages cafeterias and rosters.', animationState: 'idle' },
+        { time: 0, subtitle: 'Under our admin systems, the platform manages cafeterias and rosters.', animationState: 'idle' },
         { time: 3, subtitle: 'Employees can order digital lunch tickets. The portal generates unique, secure token codes.', animationState: 'token_generation' },
         { time: 6.5, subtitle: 'Simultaneously, HR can set buffer grace periods for night shifts or custom roster blocks.', animationState: 'shift_setting' },
         { time: 9, subtitle: 'WatchTower merges attendance data with shift logs to prevent billing inaccuracies.', animationState: 'summary' }
