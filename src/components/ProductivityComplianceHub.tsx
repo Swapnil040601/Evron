@@ -33,6 +33,7 @@ import LiveMap, { MapEmployee } from './LiveMap';
 
 interface ProductivityComplianceHubProps {
   employees: Employee[];
+  currentUserCode?: string;
   onTriggerAlert?: (detail: string, cameraName: string, status: 'critical' | 'warning' | 'info') => void;
 }
 
@@ -41,7 +42,7 @@ const FORBIDDEN_APP_NAMES = ['whatsapp', 'instagram', 'clash', 'fakegps', 'vpn',
 const formatDist = (m: number): string =>
   m >= 1000 ? `${(m / 1000).toFixed(2)} km` : `${Math.round(m)} m`;
 
-export default function ProductivityComplianceHub({ employees, onTriggerAlert }: ProductivityComplianceHubProps) {
+export default function ProductivityComplianceHub({ employees, currentUserCode, onTriggerAlert }: ProductivityComplianceHubProps) {
   // Navigation sub-tabs
   const [activeSubTab, setActiveSubTab] = useState<'tracker' | 'excel_export' | 'gps_history'>('tracker');
   
@@ -766,7 +767,9 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
                 onMapClick={isDefiningGeofence ? handleMapClick : undefined}
                 selfLat={selfPos?.lat}
                 selfLng={selfPos?.lng}
-                employees={employees.map(emp => {
+                employees={employees
+                  .filter(emp => emp.id !== currentUserCode)
+                  .map(emp => {
                   const st = employeeStates[emp.id];
                   const lat = st?.activeLat ?? geofenceCenter.lat;
                   const lng = st?.activeLng ?? geofenceCenter.lng;

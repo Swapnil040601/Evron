@@ -700,6 +700,7 @@ export default function App() {
               <ProductivityComplianceHub
                 key={productivityKey}
                 employees={employees}
+                currentUserCode={currentUser.code}
                 onTriggerAlert={async (detail, cameraName, status) => {
                   await apiService.addSimulatorAlert(`[${cameraName}] ${detail}`, status);
                   await loadAdminData();
