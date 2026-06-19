@@ -607,113 +607,90 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
 
       {activeSubTab === 'tracker' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6" id="tracker-viewport-layout">
-          {/* Left panel: Employee Roster select filter List */}
-          <div className="lg:col-span-4 bg-zinc-900/40 border border-zinc-800 p-4 rounded-xl flex flex-col justify-between max-h-[680px] overflow-hidden" id="staff-select-card-compliance">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-                <span className="text-xs font-bold font-mono tracking-wider text-red-500 uppercase">Active Staff</span>
-                <span className="text-[10px] bg-zinc-950 text-zinc-400 px-2 py-0.5 rounded font-mono border border-zinc-850">
-                  {employees.filter(e => e.status !== 'On Leave').length} ACTIVE
-                </span>
-              </div>
+          {/* Left panel: Employee selector dropdown */}
+          <div className="lg:col-span-4 bg-zinc-900/40 border border-zinc-800 p-4 rounded-xl space-y-4" id="staff-select-card-compliance">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+              <span className="text-xs font-bold font-mono tracking-wider text-red-500 uppercase">Select Employee</span>
+              <span className="text-[10px] bg-zinc-950 text-zinc-400 px-2 py-0.5 rounded font-mono border border-zinc-850">
+                {employees.filter(e => e.status !== 'On Leave').length} ACTIVE
+              </span>
+            </div>
 
-              {/* Search input UI */}
+            {/* Search + Dropdown */}
+            <div className="space-y-2">
               <div className="relative">
                 <Search className="absolute left-3 top-2.5 w-4 h-4 text-zinc-500" />
                 <input
                   type="text"
-                  placeholder="Filter by name, ID or split..."
+                  placeholder="Search by name or ID..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full bg-zinc-950 border border-zinc-800 text-xs text-white pl-9 pr-4 py-2 rounded-lg placeholder-zinc-500 font-mono focus:outline-none focus:border-red-500"
                 />
               </div>
-
-              {/* Employees selectable block */}
-              <div className="space-y-2 overflow-y-auto max-h-[460px] pr-1" id="compliance-scrolling-employees">
-                {filteredEmployeesList.map(emp => {
-                  const stateObj = employeeStates[emp.id] || {
-                    walkedKm: 0,
-                    offsiteMinutes: 0,
-                    currentApp: 'Idle',
-                    isAppViolating: false,
-                    networkType: 'wifi',
-                    isSsidViolating: false,
-                    isWearingUniform: true,
-                    uniformComplianceRate: 100,
-                    securityAlertCount: 0,
-                    isDeveloperModeOn: false,
-                    wifiBypassedOrAirplaneMode: false
-                  };
-
-                  const isSelected = selectedEmpId === emp.id;
-                  const offsiteHours = (stateObj.offsiteMinutes / 60).toFixed(1);
-
-                  return (
-                    <button
-                      key={emp.id}
-                      onClick={() => setSelectedEmpId(emp.id)}
-                      className={`w-full flex items-center justify-between p-3 rounded-lg text-left border transition ${
-                        isSelected 
-                          ? 'bg-red-500/10 border-red-500' 
-                          : 'bg-zinc-950/40 border-zinc-850 hover:border-zinc-700 hover:bg-zinc-900/40'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <img 
-                          src={emp.avatar || `https://images.unsplash.com/photo-1540350390157-c74035bba300?w=120&auto=format&fit=facearea&facepad=2&q=80`} 
-                          alt={emp.name} 
-                          className="w-8 h-8 rounded-full border border-zinc-800 focus:no-referrer"
-                          referrerPolicy="no-referrer"
-                        />
-                        <div className="min-w-0 leading-snug">
-                          <h4 className="text-xs font-bold text-white font-sans truncate">{emp.name}</h4>
-                          <div className="flex flex-wrap items-center gap-1 mt-0.5">
-                            <span className="text-[9px] text-zinc-500 font-mono uppercase">{emp.id}</span>
-                            {stateObj.isDeveloperModeOn && (
-                              <span className="text-[7.5px] bg-red-950/60 text-red-400 border border-red-900/55 px-1 rounded font-mono font-bold font-semibold uppercase animate-pulse">
-                                Dev Mode
-                              </span>
-                            )}
-                            {stateObj.wifiBypassedOrAirplaneMode && (
-                              <span className="text-[7.5px] bg-amber-950/60 text-amber-400 border border-amber-900/55 px-1 rounded font-mono font-bold font-semibold uppercase">
-                                Offline
-                              </span>
-                            )}
-                            {(stateObj as any).otherAppOpens > 0 && (
-                              <span className={`text-[7.5px] px-1 rounded font-mono font-bold uppercase border ${
-                                (stateObj as any).otherAppOpens > 10
-                                  ? 'bg-red-950/60 text-red-400 border-red-900/55 animate-pulse'
-                                  : 'bg-amber-950/40 text-amber-400 border-amber-900/40'
-                              }`}>
-                                {(stateObj as any).otherAppOpens}× Apps
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col items-end text-right font-mono shrink-0">
-                        <span className={`text-[10px] font-bold ${stateObj.walkedKm > 1.5 ? 'text-emerald-400' : 'text-zinc-400'}`}>
-                          {stateObj.walkedKm} KM
-                        </span>
-                        {stateObj.offsiteMinutes > 0 ? (
-                          <span className={`text-[8px] bg-red-500/10 text-rose-400 border border-red-500/20 px-1 py-0.5 rounded font-bold mt-0.5`}>
-                            {offsiteHours}H Offsite
-                          </span>
-                        ) : (
-                          <span className="text-[8px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1 py-0.5 rounded font-bold mt-0.5">
-                            Onsite
-                          </span>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
+              <select
+                value={selectedEmpId}
+                onChange={(e) => setSelectedEmpId(e.target.value)}
+                className="w-full bg-zinc-950 border border-zinc-800 text-xs text-white p-2.5 rounded-lg font-mono focus:outline-none focus:border-red-500 appearance-none cursor-pointer"
+              >
+                {filteredEmployeesList.map(emp => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.name} ({emp.id})
+                  </option>
+                ))}
+              </select>
             </div>
-            
-            <div className="mt-4 pt-3 border-t border-zinc-800 text-[10px] text-zinc-500 font-mono font-semibold flex items-center justify-between">
+
+            {/* Selected employee summary card */}
+            {selectedEmployeeObj && (
+              <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3.5 space-y-3">
+                <div className="flex items-center gap-3">
+                  <img
+                    src={selectedEmployeeObj.avatar || `https://images.unsplash.com/photo-1540350390157-c74035bba300?w=120&auto=format&fit=facearea&facepad=2&q=80`}
+                    alt={selectedEmployeeObj.name}
+                    className="w-10 h-10 rounded-full border border-zinc-700"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="min-w-0">
+                    <h4 className="text-xs font-bold text-white font-sans truncate">{selectedEmployeeObj.name}</h4>
+                    <span className="text-[9px] text-zinc-500 font-mono uppercase">{selectedEmployeeObj.id} · {selectedEmployeeObj.department}</span>
+                  </div>
+                </div>
+
+                {/* Quick status badges */}
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedEmpState.isDeveloperModeOn && (
+                    <span className="text-[8px] bg-red-950/60 text-red-400 border border-red-900/40 px-1.5 py-0.5 rounded font-mono font-bold uppercase animate-pulse">Dev Mode</span>
+                  )}
+                  {selectedEmpState.wifiBypassedOrAirplaneMode && (
+                    <span className="text-[8px] bg-amber-950/60 text-amber-400 border border-amber-900/40 px-1.5 py-0.5 rounded font-mono font-bold uppercase">Offline</span>
+                  )}
+                  {(selectedEmpState as any).otherAppOpens > 0 && (
+                    <span className={`text-[8px] px-1.5 py-0.5 rounded font-mono font-bold uppercase border ${
+                      (selectedEmpState as any).otherAppOpens > 10
+                        ? 'bg-red-950/60 text-red-400 border-red-900/40'
+                        : 'bg-amber-950/40 text-amber-400 border-amber-900/40'
+                    }`}>
+                      {(selectedEmpState as any).otherAppOpens}× Apps
+                    </span>
+                  )}
+                  <span className={`text-[8px] px-1.5 py-0.5 rounded font-mono font-bold uppercase border ${
+                    selectedEmpState.walkedKm > 1.5
+                      ? 'bg-emerald-950/40 text-emerald-400 border-emerald-900/40'
+                      : 'bg-zinc-900 text-zinc-500 border-zinc-800'
+                  }`}>
+                    {selectedEmpState.walkedKm} KM
+                  </span>
+                </div>
+
+                {/* Status line */}
+                <div className="text-[9px] font-mono text-zinc-500 border-t border-zinc-800 pt-2">
+                  {selectedEmpState.statusDetail || 'No live data yet.'}
+                </div>
+              </div>
+            )}
+
+            <div className="pt-2 border-t border-zinc-800 text-[10px] text-zinc-500 font-mono font-semibold flex items-center justify-between">
               <span>LIVE GPS · POLLS EVERY 30S</span>
               {Object.keys(employeeStates).length > 0
                 ? <span className="text-emerald-400 animate-pulse">● {Object.keys(employeeStates).length} ACTIVE</span>
