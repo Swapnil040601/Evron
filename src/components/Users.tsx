@@ -21,17 +21,29 @@ export default function Users({ employees, onAddEmployee, currentUser }: UsersPr
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isAdmin = currentUser.role === 'Admin' || currentUser.role === 'admin' || currentUser.role === 'super_admin';
-  const [locModal, setLocModal] = useState<{ emp: Employee; data: any | null; loading: boolean } | null>(null);
+  const [locModal, setLocModal] = useState<{ emp: Employee; data: any | null; loading: boolean; error: boolean } | null>(null);
 
   const openLocationModal = async (emp: Employee) => {
-    setLocModal({ emp, data: null, loading: true });
+    setLocModal({ emp, data: null, loading: true, error: false });
     try {
       const locs = await apiService.getEmployeeLocations();
       const loc = locs.find((l: any) => l.user_id === emp.dbId) || null;
-      setLocModal({ emp, data: loc, loading: false });
+      setLocModal({ emp, data: loc, loading: false, error: false });
     } catch {
-      setLocModal({ emp, data: null, loading: false });
+      setLocModal({ emp, data: null, loading: false, error: true });
     }
+  };
+
+  const getStaleInfo = (updatedAt: string | null) => {
+    if (!updatedAt) return { label: 'Unknown', minutes: Infinity, level: 'dead' as const };
+    const mins = Math.floor((Date.now() - new Date(updatedAt).getTime()) / 60000);
+    if (mins < 2) return { label: 'Just now', minutes: mins, level: 'fresh' as const };
+    if (mins < 5) return { label: `${mins} min ago`, minutes: mins, level: 'fresh' as const };
+    if (mins < 15) return { label: `${mins} min ago`, minutes: mins, level: 'warm' as const };
+    if (mins < 60) return { label: `${mins} min ago`, minutes: mins, level: 'stale' as const };
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return { label: `${hrs}h ${mins % 60}m ago`, minutes: mins, level: 'stale' as const };
+    return { label: `${Math.floor(hrs / 24)}d ago`, minutes: mins, level: 'dead' as const };
   };
 
   // Form states
@@ -368,71 +380,170 @@ checkInTime: newEmpStatus === 'Present' ? '09:00 AM' : undefined
 
             {locModal.loading ? (
               <div className="text-center py-6 text-zinc-500 text-xs font-mono animate-pulse">Fetching live data...</div>
+            ) : locModal.error ? (
+              <div className="bg-red-950/30 border border-red-500/30 rounded-xl p-4 text-center space-y-2">
+                <Signal className="w-6 h-6 text-red-400 mx-auto" />
+                <p className="text-xs text-red-400 font-mono font-bold">Failed to fetch location data</p>
+                <p className="text-[9px] text-zinc-400 font-mono">Server may be unreachable or the request timed out. Check your internet connection.</p>
+                <button onClick={() => openLocationModal(locModal.emp)} className="mt-2 px-3 py-1 bg-red-600 hover:bg-red-500 text-white text-[10px] font-mono font-bold rounded-lg transition">
+                  RETRY
+                </button>
+              </div>
             ) : locModal.data ? (
-              <div className="space-y-3">
-                {/* GPS */}
-                <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 space-y-2">
-                  <div className="flex items-center gap-1.5 text-[9px] font-mono text-zinc-500 uppercase font-bold">
-                    <MapPin className="w-3 h-3 text-emerald-400" /> GPS Coordinates
-                  </div>
-                  {locModal.data.latitude && locModal.data.longitude ? (
-                    <>
+              (() => {
+                const stale = getStaleInfo(locModal.data.updated_at);
+                return (
+                  <div className="space-y-3">
+                    {/* Freshness indicator */}
+                    <div className={`flex items-center justify-between px-3 py-2 rounded-lg border text-[10px] font-mono font-bold ${
+                      stale.level === 'fresh' ? 'bg-emerald-950/20 border-emerald-500/30 text-emerald-400' :
+                      stale.level === 'warm'  ? 'bg-amber-950/20 border-amber-500/30 text-amber-400' :
+                      stale.level === 'stale' ? 'bg-red-950/20 border-red-500/30 text-red-400' :
+                                                'bg-zinc-900 border-zinc-700 text-zinc-500'
+                    }`}>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`w-2 h-2 rounded-full ${
+                          stale.level === 'fresh' ? 'bg-emerald-500 animate-pulse' :
+                          stale.level === 'warm'  ? 'bg-amber-500' :
+                          stale.level === 'stale' ? 'bg-red-500 animate-pulse' :
+                                                    'bg-zinc-600'
+                        }`} />
+                        {stale.level === 'fresh' ? 'LIVE' :
+                         stale.level === 'warm'  ? 'RECENT' :
+                         stale.level === 'stale' ? 'STALE DATA' :
+                                                   'OFFLINE / NO DATA'}
+                      </div>
+                      <span className="text-[9px] opacity-80">{stale.label}</span>
+                    </div>
+
+                    {stale.level === 'stale' && (
+                      <div className="bg-amber-950/20 border border-amber-500/20 rounded-lg px-3 py-2 text-[9px] text-amber-300 font-mono">
+                        Location data is {stale.minutes} min old. Employee may have turned off the app, GPS, or internet.
+                      </div>
+                    )}
+                    {stale.level === 'dead' && (
+                      <div className="bg-red-950/20 border border-red-500/20 rounded-lg px-3 py-2 text-[9px] text-red-300 font-mono">
+                        No recent data. Employee device is unreachable — GPS or internet may be disabled, or the app is not running.
+                      </div>
+                    )}
+
+                    {/* GPS */}
+                    <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-[9px] font-mono text-zinc-500 uppercase font-bold">
+                          <MapPin className="w-3 h-3 text-emerald-400" /> GPS Coordinates
+                        </div>
+                        {locModal.data.accuracy && (
+                          <span className={`text-[8px] font-mono px-1.5 py-0.5 rounded border ${
+                            Number(locModal.data.accuracy) <= 20
+                              ? 'text-emerald-400 border-emerald-500/30 bg-emerald-950/20'
+                              : Number(locModal.data.accuracy) <= 100
+                              ? 'text-amber-400 border-amber-500/30 bg-amber-950/20'
+                              : 'text-red-400 border-red-500/30 bg-red-950/20'
+                          }`}>
+                            ±{Math.round(Number(locModal.data.accuracy))}m accuracy
+                          </span>
+                        )}
+                      </div>
+                      {locModal.data.latitude && locModal.data.longitude ? (
+                        <>
+                          <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
+                            <div>
+                              <span className="text-zinc-600 block text-[8px] uppercase">Latitude</span>
+                              <span className="text-white font-bold">{parseFloat(locModal.data.latitude).toFixed(6)}</span>
+                            </div>
+                            <div>
+                              <span className="text-zinc-600 block text-[8px] uppercase">Longitude</span>
+                              <span className="text-white font-bold">{parseFloat(locModal.data.longitude).toFixed(6)}</span>
+                            </div>
+                          </div>
+                          <a
+                            href={`https://www.google.com/maps?q=${locModal.data.latitude},${locModal.data.longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-[9px] font-mono text-emerald-400 hover:text-emerald-300 underline"
+                          >
+                            <MapPin className="w-3 h-3" /> Verify on Google Maps →
+                          </a>
+                        </>
+                      ) : (
+                        <div className="py-2 text-center">
+                          <p className="text-[10px] text-zinc-500 font-mono">GPS coordinates not available.</p>
+                          <p className="text-[9px] text-zinc-600 font-mono mt-0.5">Employee's device may have GPS turned off.</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Network */}
+                    <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 space-y-2">
+                      <div className="flex items-center gap-1.5 text-[9px] font-mono text-zinc-500 uppercase font-bold">
+                        <Wifi className="w-3 h-3 text-blue-400" /> Network
+                      </div>
                       <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
                         <div>
-                          <span className="text-zinc-600 block text-[8px] uppercase">Latitude</span>
-                          <span className="text-white font-bold">{parseFloat(locModal.data.latitude).toFixed(6)}</span>
+                          <span className="text-zinc-600 block text-[8px] uppercase">Type</span>
+                          <span className={`font-bold ${locModal.data.network_type === 'wifi' ? 'text-blue-400' : 'text-amber-400'}`}>
+                            {locModal.data.network_type === 'wifi' ? 'Wi-Fi' : locModal.data.network_type || 'Unknown'}
+                          </span>
                         </div>
                         <div>
-                          <span className="text-zinc-600 block text-[8px] uppercase">Longitude</span>
-                          <span className="text-white font-bold">{parseFloat(locModal.data.longitude).toFixed(6)}</span>
+                          <span className="text-zinc-600 block text-[8px] uppercase">Wi-Fi SSID</span>
+                          <span className="text-white font-bold truncate block">{locModal.data.wifi_ssid || '—'}</span>
                         </div>
                       </div>
-                      <a
-                        href={`https://www.google.com/maps?q=${locModal.data.latitude},${locModal.data.longitude}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[9px] font-mono text-emerald-400 hover:text-emerald-300 underline block"
-                      >
-                        Open in Google Maps →
-                      </a>
-                    </>
-                  ) : (
-                    <p className="text-[10px] text-zinc-500 font-mono">No GPS data received yet.</p>
-                  )}
-                </div>
-
-                {/* Network */}
-                <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 space-y-2">
-                  <div className="flex items-center gap-1.5 text-[9px] font-mono text-zinc-500 uppercase font-bold">
-                    <Wifi className="w-3 h-3 text-blue-400" /> Network
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
-                    <div>
-                      <span className="text-zinc-600 block text-[8px] uppercase">Type</span>
-                      <span className={`font-bold ${locModal.data.network_type === 'wifi' ? 'text-blue-400' : 'text-amber-400'}`}>
-                        {locModal.data.network_type === 'wifi' ? 'Wi-Fi' : locModal.data.network_type || 'Cellular'}
-                      </span>
                     </div>
-                    <div>
-                      <span className="text-zinc-600 block text-[8px] uppercase">Wi-Fi SSID</span>
-                      <span className="text-white font-bold truncate block">{locModal.data.wifi_ssid || '—'}</span>
+
+                    {/* Device Security */}
+                    <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 space-y-2">
+                      <div className="flex items-center gap-1.5 text-[9px] font-mono text-zinc-500 uppercase font-bold">
+                        <Signal className="w-3 h-3 text-purple-400" /> Device
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
+                        <div>
+                          <span className="text-zinc-600 block text-[8px] uppercase">Developer Mode</span>
+                          <span className={`font-bold ${locModal.data.is_developer_mode ? 'text-red-400' : 'text-emerald-400'}`}>
+                            {locModal.data.is_developer_mode ? 'ON' : 'OFF'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-zinc-600 block text-[8px] uppercase">Other Apps Used</span>
+                          <span className={`font-bold ${(locModal.data.other_app_opens || 0) > 10 ? 'text-red-400' : 'text-zinc-300'}`}>
+                            {locModal.data.other_app_opens ?? 0}
+                          </span>
+                        </div>
+                      </div>
+                      {locModal.data.device_id && (
+                        <div>
+                          <span className="text-zinc-600 block text-[8px] uppercase font-mono">Device ID</span>
+                          <span className="text-[9px] text-zinc-400 font-mono break-all">{locModal.data.device_id}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Last seen */}
+                    <div className="flex items-center justify-between text-[9px] font-mono text-zinc-500 border-t border-zinc-800 pt-2">
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="w-3 h-3" />
+                        Last update: {locModal.data.updated_at ? new Date(locModal.data.updated_at).toLocaleString() : 'Never'}
+                      </div>
+                      <button onClick={() => openLocationModal(locModal.emp)} className="text-emerald-400 hover:text-emerald-300 font-bold uppercase">
+                        Refresh
+                      </button>
                     </div>
                   </div>
-                </div>
-
-                {/* Last seen */}
-                {locModal.data.updated_at && (
-                  <div className="flex items-center gap-1.5 text-[9px] font-mono text-zinc-500">
-                    <Clock className="w-3 h-3" />
-                    Last updated: {new Date(locModal.data.updated_at).toLocaleString()}
-                  </div>
-                )}
-              </div>
+                );
+              })()
             ) : (
-              <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-center space-y-1">
-                <Signal className="w-5 h-5 text-zinc-600 mx-auto" />
-                <p className="text-xs text-zinc-500 font-mono">No location data available.</p>
-                <p className="text-[9px] text-zinc-600 font-mono">This employee hasn't shared their location yet.</p>
+              <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-5 text-center space-y-2">
+                <Signal className="w-7 h-7 text-zinc-600 mx-auto" />
+                <p className="text-xs text-zinc-400 font-mono font-bold">No location data available</p>
+                <p className="text-[9px] text-zinc-500 font-mono leading-relaxed">
+                  This employee has not opened the app or their device has never reported location data.
+                  Ask them to open the app and ensure GPS and internet are enabled.
+                </p>
+                <button onClick={() => openLocationModal(locModal.emp)} className="mt-2 px-3 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[10px] font-mono font-bold rounded-lg transition border border-zinc-700">
+                  RETRY
+                </button>
               </div>
             )}
           </div>
