@@ -188,7 +188,7 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
         await apiService.postMyLocation({
           latitude: realDevice.latitude,
           longitude: realDevice.longitude,
-          accuracy: undefined,
+          accuracy: realDevice.accuracy || undefined,
           wifi_ssid: deviceInfo.wifiSsid,
           network_type: deviceInfo.wifiSsid ? 'wifi' : 'cellular',
           is_developer_mode: deviceInfo.isDeveloperMode,

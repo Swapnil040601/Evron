@@ -1540,9 +1540,10 @@ class ApiService {
         securityAlertCount: (loc.is_developer_mode ? 1 : 0) + (isAppViolating ? 1 : 0),
         activeLat: parseFloat(loc.latitude),
         activeLng: parseFloat(loc.longitude),
+        accuracy: parseFloat(loc.accuracy) || 0,
         statusDetail: minutesSinceUpdate < 2
-          ? 'Live tracking active.'
-          : `Last update: ${minutesSinceUpdate} min ago.`,
+          ? `Live tracking active. (±${Math.round(parseFloat(loc.accuracy) || 0)}m)`
+          : `Last update: ${minutesSinceUpdate} min ago. (±${Math.round(parseFloat(loc.accuracy) || 0)}m)`,
         isDeveloperModeOn: loc.is_developer_mode || false,
         wifiBypassedOrAirplaneMode: false,
         otherAppOpens: loc.other_app_opens || 0,

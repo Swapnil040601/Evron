@@ -288,28 +288,31 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
   };
 
   const checkEmployeeGeofence = (
-    empId: string, 
-    activeLat: number, 
-    activeLng: number, 
+    empId: string,
+    activeLat: number,
+    activeLng: number,
     currentStates: any,
     addCctvAlert: boolean = true
   ) => {
     const emp = employees.find(e => e.id === empId);
     if (!emp) return null;
 
-    // Retrieve active config
+    if (fieldDutySet.has(empId)) return null;
+
     const center = geofenceCenterRef.current;
     const radius = geofenceRadiusRef.current;
 
     const distance = getDistanceInMeters(activeLat, activeLng, center.lat, center.lng);
-    const isCurrentlyOutside = distance > radius;
+    const empAccuracy = Number((currentStates[empId] as any)?.accuracy) || 0;
+    const confirmedDistance = Math.max(0, distance - empAccuracy);
+    const isCurrentlyOutside = confirmedDistance > radius;
     const cachedState = notifiedBreaches[empId] || 'inside';
 
     if (isCurrentlyOutside && cachedState !== 'outside') {
       // Set to outside
       setNotifiedBreaches(prev => ({ ...prev, [empId]: 'outside' }));
       
-      const msg = `[GEOFENCE VIOLATION] Worker ${emp.name} (${empId}) crossed the secure geofence zone! Present Location: [${activeLat.toFixed(5)}, ${activeLng.toFixed(5)}], Distance is ${formatDist(distance)} (Max Limit configured: ${formatDist(radius)}).`;
+      const msg = `[GEOFENCE VIOLATION] Worker ${emp.name} (${empId}) crossed the secure geofence zone! Location: [${activeLat.toFixed(5)}, ${activeLng.toFixed(5)}], Distance: ${formatDist(distance)} (accuracy ±${Math.round(empAccuracy)}m, confirmed ${formatDist(confirmedDistance)} outside ${formatDist(radius)} limit).`;
       
       triggerOuterSystemAlert(msg, "Geofence", "critical");
 

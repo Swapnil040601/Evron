@@ -9,6 +9,7 @@ export interface RealDeviceStatus {
   isOnline: boolean;
   latitude: number;
   longitude: number;
+  accuracy: number;
   checking: boolean;
   locationReady: boolean;
   refreshLocation: () => Promise<void>;
@@ -20,6 +21,7 @@ export function useRealDeviceStatus(employeeName?: string): RealDeviceStatus {
   const [isOnline, setIsOnline] = useState(true);
   const [latitude, setLatitude] = useState(0);
   const [longitude, setLongitude] = useState(0);
+  const [accuracy, setAccuracy] = useState(0);
   const [checking, setChecking] = useState(true);
   const [locationReady, setLocationReady] = useState(false);
 
@@ -73,6 +75,7 @@ export function useRealDeviceStatus(employeeName?: string): RealDeviceStatus {
         });
         setLatitude(initial.coords.latitude);
         setLongitude(initial.coords.longitude);
+        setAccuracy(initial.coords.accuracy ?? 0);
         setGpsEnabled(true);
         setPermissionDenied(false);
         setLocationReady(true);
@@ -105,8 +108,10 @@ export function useRealDeviceStatus(employeeName?: string): RealDeviceStatus {
             return;
           }
 
+          if (position.coords.accuracy > 150) return;
           setLatitude(position.coords.latitude);
           setLongitude(position.coords.longitude);
+          setAccuracy(position.coords.accuracy ?? 0);
           setGpsEnabled(true);
           setPermissionDenied(false);
           setLocationReady(true);
@@ -150,6 +155,7 @@ export function useRealDeviceStatus(employeeName?: string): RealDeviceStatus {
       });
       setLatitude(pos.coords.latitude);
       setLongitude(pos.coords.longitude);
+      setAccuracy(pos.coords.accuracy ?? 0);
       setGpsEnabled(true);
       setPermissionDenied(false);
       setLocationReady(true);
@@ -217,5 +223,5 @@ export function useRealDeviceStatus(employeeName?: string): RealDeviceStatus {
     };
   }, [startWatching, stopWatching, employeeName]);
 
-  return { gpsEnabled, permissionDenied, isOnline, latitude, longitude, checking, locationReady, refreshLocation };
+  return { gpsEnabled, permissionDenied, isOnline, latitude, longitude, accuracy, checking, locationReady, refreshLocation };
 }
