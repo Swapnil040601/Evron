@@ -24,6 +24,7 @@ import {
   Moon
 } from 'lucide-react';
 import { App as CapApp } from '@capacitor/app';
+import { Geolocation } from '@capacitor/geolocation';
 import { showAlert } from './utils/dialog';
 
 // Import Types
@@ -151,6 +152,33 @@ export default function App() {
     return () => { listener?.remove?.(); };
   }, [activeTab]);
 
+  // Request location permission immediately on app launch — mandatory
+  useEffect(() => {
+    const ensureLocationPermission = async () => {
+      try {
+        let perm = await Geolocation.checkPermissions();
+        if (perm.location === 'prompt' || perm.location === 'prompt-with-rationale') {
+          await Geolocation.requestPermissions({ permissions: ['location'] });
+        }
+      } catch {}
+    };
+    ensureLocationPermission();
+  }, []);
+
+  // Refresh data whenever app comes back to foreground
+  useEffect(() => {
+    let listener: any;
+    const setup = async () => {
+      listener = await CapApp.addListener('appStateChange', ({ isActive }) => {
+        if (isActive && currentUser && isAdminRole(currentUser.role)) {
+          loadAdminData();
+        }
+      });
+    };
+    setup();
+    return () => { listener?.remove?.(); };
+  }, [currentUser]);
+
   // Trigger login session retrieval
   useEffect(() => {
     checkActiveSession();
@@ -180,20 +208,25 @@ export default function App() {
 
 
   const loadAdminData = async () => {
-    try {
-      const today = new Date().toISOString().slice(0, 10);
+    const today = new Date().toISOString().slice(0, 10);
 
-      // 1. Fetch Users + today's real attendance in parallel
-      const [uRes, attRes] = await Promise.all([
-        apiService.getUsersList({
-          page: 1,
-          limit: 200,
-          search: '',
-          department: '',
-          status: '',
-          type: ''
-        }),
-        apiService.getAttendanceList({
+    // 1. Fetch employee list — always independent so attendance failures never wipe the list
+    try {
+      const uRes = await apiService.getUsersList({
+        page: 1,
+        limit: 200,
+        search: '',
+        department: '',
+        status: '',
+        type: ''
+      });
+
+      const rows = Array.isArray(uRes?.rows) ? uRes.rows : [];
+
+      // Fetch attendance in parallel with user processing, but don't let it block employees
+      let attendanceMap = new Map<number, AttendanceRecord>();
+      try {
+        const attRes = await apiService.getAttendanceList({
           from: today,
           to: today,
           user_id: null,
@@ -201,16 +234,13 @@ export default function App() {
           search: '',
           page: 1,
           limit: 500
-        })
-      ]);
-
-      // Build userId → attendance record map for O(1) lookup
-      const attendanceMap = new Map<number, AttendanceRecord>();
-      attRes.rows.forEach(r => attendanceMap.set(r.user_id, r));
+        });
+        (attRes?.rows || []).forEach((r: AttendanceRecord) => attendanceMap.set(r.user_id, r));
+      } catch {}
 
       const seenEmpIds = new Set<string>();
       const mappedEmp: Employee[] = [];
-      uRes.rows.forEach(user => {
+      rows.forEach((user: any) => {
         const empId = user.code || `EMP-${user.id}`;
         if (!seenEmpIds.has(empId.toLowerCase().trim())) {
           seenEmpIds.add(empId.toLowerCase().trim());
@@ -235,19 +265,24 @@ export default function App() {
         }
       });
       setEmployees(mappedEmp);
+    } catch (err) {
+      console.error('Failed to load employee list:', err);
+    }
 
-      // 2. Fetch Leaves Approvals Queue
+    // 2-4. Remaining data — each step independent
+    try {
       const lRes = await apiService.getReporteesLeaves();
       setLeaveRequests(lRes);
+    } catch {}
 
-      // 3. Fetch alerts log unreads
+    try {
       const count = await apiService.getUnreadAlertsCount();
       setUnreadAlerts(count);
-
       const alertList = await apiService.getAlerts();
       setSimAlerts(alertList);
+    } catch {}
 
-      // 4. Fetch dashboard stats + holidays in parallel
+    try {
       const [dStats, holidayList] = await Promise.all([
         apiService.getDashboardData(today),
         apiService.getHolidays(new Date().getFullYear())
@@ -258,10 +293,7 @@ export default function App() {
         total: dStats.summary.totalEmployees
       });
       setHolidays(holidayList);
-
-    } catch (err) {
-      console.warn('Sync logs error in watchtower loader.');
-    }
+    } catch {}
   };
 
   const handleLogout = () => {
@@ -698,7 +730,7 @@ export default function App() {
               transition={{ duration: 0.18 }}
               className="w-full"
             >
-              <Users employees={employees} onAddEmployee={handleAddEmployee} />
+              <Users employees={employees} onAddEmployee={handleAddEmployee} currentUser={currentUser!} />
             </motion.div>
           )}
         </AnimatePresence>

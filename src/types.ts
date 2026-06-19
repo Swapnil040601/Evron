@@ -33,6 +33,9 @@ export interface AttendanceRecord {
   check_in: string | null; // HH:MM
   check_out: string | null; // HH:MM
   productive_hours: number;
+  punch_in_selfie?: string | null;
+  punch_out_selfie?: string | null;
+  remarks?: string | null;
 }
 
 // Attendance Track Log

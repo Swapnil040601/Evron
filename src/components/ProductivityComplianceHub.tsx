@@ -25,9 +25,6 @@ import {
   Lock,
   Compass,
   Navigation,
-  Clock,
-  MapPinned,
-  FilterX
 } from 'lucide-react';
 import { Geolocation } from '@capacitor/geolocation';
 import { Employee } from '../types';
@@ -41,70 +38,12 @@ interface ProductivityComplianceHubProps {
 
 const FORBIDDEN_APP_NAMES = ['whatsapp', 'instagram', 'clash', 'fakegps', 'vpn', 'tor', 'pubg', 'freefire'];
 
-// Group flat location-log rows (from backend) into per-user objects with events
-function groupLocationLogs(rows: any[]) {
-  const byUser = new Map<number, any>();
-  for (const row of rows) {
-    const uid = row.user_id;
-    if (!byUser.has(uid)) {
-      byUser.set(uid, {
-        user_id: uid,
-        user_name: row.user_name,
-        employee_code: row.employee_code,
-        department: row.department,
-        total_pings: 0,
-        events: [],
-      });
-    }
-    const user = byUser.get(uid)!;
-    user.total_pings++;
-    user.events.push({
-      type: 'ping',
-      start: row.logged_at,
-      end: row.logged_at,
-      lat: parseFloat(row.latitude),
-      lng: parseFloat(row.longitude),
-      wifi_ssid: row.wifi_ssid,
-      accuracy: row.accuracy,
-      is_developer_mode: row.is_developer_mode,
-      walk_distance_m: row.walk_distance_m,
-      ping_count: 1,
-    });
-  }
-  // Within each user, detect stays (≥10 min within ~50m radius)
-  for (const user of byUser.values()) {
-    user.events = detectStayEvents(user.events);
-  }
-  return Array.from(byUser.values());
-}
-
-function detectStayEvents(pings: any[]) {
-  if (pings.length === 0) return [];
-  const dist = (a: any, b: any) => {
-    const dy = (a.lat - b.lat) * 111320;
-    const dx = (a.lng - b.lng) * 108000;
-    return Math.sqrt(dx * dx + dy * dy);
-  };
-  const result: any[] = [];
-  let i = 0;
-  while (i < pings.length) {
-    let j = i + 1;
-    while (j < pings.length && dist(pings[i], pings[j]) <= 50) j++;
-    const durationMs = new Date(pings[i].start).getTime() - new Date(pings[j - 1].start).getTime();
-    const durationMin = Math.round(Math.abs(durationMs) / 60000);
-    if (j - i >= 2 && durationMin >= 10) {
-      result.push({ ...pings[i], type: 'stay', end: pings[j - 1].start, duration_minutes: durationMin, ping_count: j - i });
-    } else {
-      for (let k = i; k < j; k++) result.push({ ...pings[k], type: 'ping', duration_minutes: 0 });
-    }
-    i = j;
-  }
-  return result;
-}
+const formatDist = (m: number): string =>
+  m >= 1000 ? `${(m / 1000).toFixed(2)} km` : `${Math.round(m)} m`;
 
 export default function ProductivityComplianceHub({ employees, onTriggerAlert }: ProductivityComplianceHubProps) {
   // Navigation sub-tabs
-  const [activeSubTab, setActiveSubTab] = useState<'tracker' | 'excel_export' | 'gps_history' | 'location_logs'>('tracker');
+  const [activeSubTab, setActiveSubTab] = useState<'tracker' | 'excel_export' | 'gps_history'>('tracker');
   
   // Search parameters
   const [searchQuery, setSearchQuery] = useState('');
@@ -128,24 +67,20 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
   }>>({});
 
   const [gpsLogs, setGpsLogs] = useState<any[]>([]);
+  const [todaySelfies, setTodaySelfies] = useState<Record<string, {
+    punch_in_selfie: string | null;
+    punch_out_selfie: string | null;
+    remarks: string | null;
+    punch_in_time: string | null;
+    punch_out_time: string | null;
+    user_name: string;
+  }>>({});
   const [isLoadingGps, setIsLoadingGps] = useState<boolean>(true);
 
-  const [locationLogs, setLocationLogs] = useState<any[]>([]);
-  const [isLoadingLocationLogs, setIsLoadingLocationLogs] = useState(false);
-  const [locLogFrom, setLocLogFrom] = useState(() => new Date().toISOString().slice(0, 10));
-  const [locLogTo, setLocLogTo] = useState(() => new Date().toISOString().slice(0, 10));
-  const [locLogUserId, setLocLogUserId] = useState<string>(''); // stores dbId as string
-
-  const fetchLocationLogs = async () => {
-    setIsLoadingLocationLogs(true);
-    try {
-      const params: { from?: string; to?: string; user_id?: number } = { from: locLogFrom, to: locLogTo };
-      if (locLogUserId) params.user_id = Number(locLogUserId);
-      const rows = await apiService.getLocationLogs(params);
-      setLocationLogs(groupLocationLogs(rows));
-    } catch { setLocationLogs([]); }
-    setIsLoadingLocationLogs(false);
-  };
+  // Export filters for Location History download
+  const [exportFrom, setExportFrom] = useState(() => new Date().toISOString().slice(0, 10));
+  const [exportTo, setExportTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [exportUserId, setExportUserId] = useState<string>('');
 
   const COMPANY_SSID = 'EVRON-SECURE-WIFI';
 
@@ -180,6 +115,34 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
     setIsLoadingGps(true);
     refreshLiveData();
     const interval = setInterval(refreshLiveData, 30_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchTodaySelfies = async () => {
+    try {
+      const rows = await apiService.getTodayAttendanceSelfies();
+      const map: typeof todaySelfies = {};
+      for (const r of rows) {
+        map[String(r.user_id)] = {
+          punch_in_selfie: r.punch_in_selfie || null,
+          punch_out_selfie: r.punch_out_selfie || null,
+          remarks: r.remarks || null,
+          punch_in_time: r.mobile_punch_in
+            ? new Date(r.mobile_punch_in).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+            : null,
+          punch_out_time: r.mobile_punch_out
+            ? new Date(r.mobile_punch_out).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+            : null,
+          user_name: r.user_name || '',
+        };
+      }
+      setTodaySelfies(map);
+    } catch {}
+  };
+
+  useEffect(() => {
+    fetchTodaySelfies();
+    const interval = setInterval(fetchTodaySelfies, 60_000);
     return () => clearInterval(interval);
   }, []);
 
@@ -231,8 +194,12 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
     }
   };
 
-  // Start GPS on mount: request permission, get initial fix, then watch continuously
+  // GPS watch only while on tracker tab — stops when user switches to other tabs
+  // This prevents continuous setSelfPos re-renders from crashing the app when
+  // location logs are loaded (500 rows re-rendering every GPS tick = OOM crash)
   useEffect(() => {
+    if (activeSubTab !== 'tracker') return;
+
     let cancelled = false;
 
     const startGps = async () => {
@@ -283,7 +250,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
         watchIdRef.current = null;
       }
     };
-  }, []);
+  }, [activeSubTab]);
 
   const getDistanceInMeters = (lat1: number, lng1: number, lat2: number, lng2: number) => {
     const latDiffMeters = (lat1 - lat2) * 111320;
@@ -326,7 +293,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
       // Set to outside
       setNotifiedBreaches(prev => ({ ...prev, [empId]: 'outside' }));
       
-      const msg = `[GEOFENCE VIOLATION] Worker ${emp.name} (${empId}) crossed the secure geofence zone! Present Location: [${activeLat.toFixed(5)}, ${activeLng.toFixed(5)}], Distance is ${(distance).toFixed(0)}m (Max Limit configured: ${radius}m).`;
+      const msg = `[GEOFENCE VIOLATION] Worker ${emp.name} (${empId}) crossed the secure geofence zone! Present Location: [${activeLat.toFixed(5)}, ${activeLng.toFixed(5)}], Distance is ${formatDist(distance)} (Max Limit configured: ${formatDist(radius)}).`;
       
       triggerOuterSystemAlert(msg, "Geofence", "critical");
 
@@ -353,7 +320,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
 
       return {
         securityAlertCount: (currentStates[empId]?.securityAlertCount || 0) + 1,
-        statusDetail: `Outside safe zone —${distance.toFixed(0)}m away).`
+        statusDetail: `Outside safe zone — ${formatDist(distance)} away.`
       };
 
     } else if (!isCurrentlyOutside && cachedState === 'outside') {
@@ -408,7 +375,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
 
         if (isCurrentlyOutside && cachedState !== 'outside') {
           setNotifiedBreaches(p => ({ ...p, [empId]: 'outside' }));
-          const msg = `[GEOFENCE VIOLATION] Worker ${emp.name} (${empId}) crossed the secure geofence zone! Present Location: [${stateObj.activeLat.toFixed(5)}, ${stateObj.activeLng.toFixed(5)}], Distance is ${(distance).toFixed(0)}m (Max Limit configured: ${radius}m).`;
+          const msg = `[GEOFENCE VIOLATION] Worker ${emp.name} (${empId}) crossed the secure geofence zone! Present Location: [${stateObj.activeLat.toFixed(5)}, ${stateObj.activeLng.toFixed(5)}], Distance is ${formatDist(distance)} (Max Limit configured: ${formatDist(radius)}).`;
           triggerOuterSystemAlert(msg, "Geofence", "critical");
 
           const timestamp = new Date().toLocaleTimeString();
@@ -433,7 +400,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
           next[empId] = {
             ...stateObj,
             securityAlertCount: stateObj.securityAlertCount + 1,
-            statusDetail: `Outside safe zone —${distance.toFixed(0)}m away).`
+            statusDetail: `Outside safe zone — ${formatDist(distance)} away.`
           };
           changed = true;
 
@@ -635,17 +602,6 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
             <Compass className="w-3.5 h-3.5" />
             Location History
           </button>
-          <button
-            onClick={() => { setActiveSubTab('location_logs'); fetchLocationLogs(); }}
-            className={`px-3 py-1.5 text-xs font-mono font-bold uppercase transition rounded-md flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
-              activeSubTab === 'location_logs'
-                ? 'bg-red-500 text-white'
-                : 'text-zinc-400 hover:text-white'
-            }`}
-          >
-            <MapPinned className="w-3.5 h-3.5" />
-            Location Logs
-          </button>
         </div>
       </div>
 
@@ -776,7 +732,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
                   Live Map — {selectedEmployeeObj?.name || '—'}
                 </span>
                 <div className="flex items-center gap-2 shrink-0">
-                  <span>Zone radius: <strong className="text-white">{geofenceRadius}m</strong></span>
+                  <span>Zone radius: <strong className="text-white">{formatDist(geofenceRadius)}</strong></span>
                   <button
                     onClick={locateDevice}
                     disabled={isLocating}
@@ -851,7 +807,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
                     <div className="bg-zinc-950 p-3 rounded-lg border border-zinc-900 space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-[8px] font-mono text-zinc-500 uppercase font-black">Boundary Radius</span>
-                        <strong className="text-xs font-mono text-white">{geofenceRadius} meters</strong>
+                        <strong className="text-xs font-mono text-white">{formatDist(geofenceRadius)}</strong>
                       </div>
                       <input 
                         type="range"
@@ -907,7 +863,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
                             <div className="flex items-center justify-between text-[11px] font-mono">
                               <span className="text-zinc-400">Distance from zone:</span>
                               <strong className={`font-mono ${isBreached ? 'text-amber-400' : 'text-emerald-400'}`}>
-                                {dist.toFixed(0)}m / {geofenceRadius}m
+                                {formatDist(dist)} / {formatDist(geofenceRadius)}
                               </strong>
                             </div>
                             <div className="flex justify-between text-[10px] font-mono">
@@ -1094,6 +1050,77 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
               </div>
             </div>
 
+            {/* Today's Attendance Selfies for selected employee */}
+            {(() => {
+              const empDbId = String((selectedEmployeeObj as any)?.dbId ?? '');
+              const selfieData = empDbId ? todaySelfies[empDbId] : null;
+              return (
+                <div className="bg-zinc-900/40 border border-zinc-800 p-4 rounded-xl space-y-3">
+                  <div className="flex items-center gap-2 border-b border-zinc-800 pb-2">
+                    <CameraIcon className="w-4 h-4 text-purple-400" />
+                    <h3 className="text-xs font-bold font-mono text-white uppercase tracking-wider">Today's Punch Selfies</h3>
+                    <button
+                      onClick={fetchTodaySelfies}
+                      className="ml-auto text-[9px] font-mono text-zinc-500 hover:text-white transition px-2 py-0.5 rounded border border-zinc-800 hover:border-zinc-600"
+                    >
+                      REFRESH
+                    </button>
+                  </div>
+                  {selfieData ? (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <span className="text-[9px] font-mono text-zinc-500 uppercase block">
+                            Punch In {selfieData.punch_in_time ? `· ${selfieData.punch_in_time}` : '· Not punched in'}
+                          </span>
+                          {selfieData.punch_in_selfie ? (
+                            <img
+                              src={apiService.getFileUrl(selfieData.punch_in_selfie)}
+                              alt="punch-in selfie"
+                              className="w-full h-32 object-cover rounded-lg border border-emerald-500/30"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            />
+                          ) : (
+                            <div className="w-full h-32 rounded-lg border border-zinc-800 bg-zinc-950 flex items-center justify-center">
+                              <span className="text-[9px] font-mono text-zinc-600">No selfie</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-[9px] font-mono text-zinc-500 uppercase block">
+                            Punch Out {selfieData.punch_out_time ? `· ${selfieData.punch_out_time}` : '· Not punched out'}
+                          </span>
+                          {selfieData.punch_out_selfie ? (
+                            <img
+                              src={apiService.getFileUrl(selfieData.punch_out_selfie)}
+                              alt="punch-out selfie"
+                              className="w-full h-32 object-cover rounded-lg border border-zinc-600/30"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            />
+                          ) : (
+                            <div className="w-full h-32 rounded-lg border border-zinc-800 bg-zinc-950 flex items-center justify-center">
+                              <span className="text-[9px] font-mono text-zinc-600">
+                                {selfieData.punch_out_time ? 'No selfie' : 'Not punched out'}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {selfieData.remarks && (
+                        <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-[10px] font-mono text-zinc-400 italic">
+                          "{selfieData.remarks}"
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="py-6 text-center text-[10px] font-mono text-zinc-600">
+                      No attendance record today for {selectedEmployeeObj?.name || 'this employee'}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* Patrol Details Panel */}
             <div className="bg-zinc-950 border border-zinc-850 p-4 rounded-xl flex items-center gap-3">
               <CheckCircle className="w-5 h-5 text-emerald-500 font-semibold" />
@@ -1111,6 +1138,63 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
 
       {activeSubTab === 'gps_history' && (
         <div className="bg-zinc-900/40 border border-zinc-800 p-5 rounded-xl space-y-6" id="compliance-gps-history-subtab">
+
+          {/* All Employees — Today's Punch Selfies */}
+          {Object.keys(todaySelfies).length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 pb-2 border-b border-zinc-800">
+                <CameraIcon className="w-4 h-4 text-purple-400" />
+                <h3 className="text-xs font-bold font-mono text-white uppercase tracking-wider">All Employees — Today's Punch Selfies</h3>
+              </div>
+              <div className="flex gap-4 overflow-x-auto pb-2">
+                {Object.entries(todaySelfies).map(([userId, data]) => (
+                  <div key={userId} className="flex-shrink-0 w-36 space-y-1.5">
+                    <div className="text-[9px] font-mono text-zinc-400 font-bold truncate">{data.user_name || `User ${userId}`}</div>
+                    <div className="grid grid-cols-2 gap-1">
+                      {data.punch_in_selfie ? (
+                        <div className="relative">
+                          <img
+                            src={apiService.getFileUrl(data.punch_in_selfie)}
+                            alt="in"
+                            title={`Punch-in ${data.punch_in_time || ''}`}
+                            className="w-full h-16 object-cover rounded border border-emerald-500/30"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                          />
+                          <span className="absolute bottom-0.5 left-0.5 text-[7px] font-mono bg-black/70 text-emerald-400 px-0.5 rounded">IN</span>
+                        </div>
+                      ) : (
+                        <div className="w-full h-16 rounded border border-zinc-800 bg-zinc-950 flex items-center justify-center">
+                          <span className="text-[7px] font-mono text-zinc-700">—</span>
+                        </div>
+                      )}
+                      {data.punch_out_selfie ? (
+                        <div className="relative">
+                          <img
+                            src={apiService.getFileUrl(data.punch_out_selfie)}
+                            alt="out"
+                            title={`Punch-out ${data.punch_out_time || ''}`}
+                            className="w-full h-16 object-cover rounded border border-zinc-600/30"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                          />
+                          <span className="absolute bottom-0.5 left-0.5 text-[7px] font-mono bg-black/70 text-zinc-400 px-0.5 rounded">OUT</span>
+                        </div>
+                      ) : (
+                        <div className="w-full h-16 rounded border border-zinc-800 bg-zinc-950 flex items-center justify-center">
+                          <span className="text-[7px] font-mono text-zinc-700">—</span>
+                        </div>
+                      )}
+                    </div>
+                    {data.punch_in_time && (
+                      <div className="text-[8px] font-mono text-zinc-500">
+                        IN: {data.punch_in_time}{data.punch_out_time ? ` · OUT: ${data.punch_out_time}` : ''}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-800 pb-4">
             <div>
               <h2 className="text-sm font-bold font-sans text-white uppercase tracking-wider flex items-center gap-2">
@@ -1118,26 +1202,59 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
                 GPS Location History
               </h2>
               <p className="text-xs text-zinc-400 font-sans mt-0.5">
-                Location history recorded from staff devices during check-in and check-out.
+                Live positions from staff devices. Use the export below to download full movement history.
               </p>
             </div>
-            
+
             <button
               onClick={() => {
                 setIsLoadingGps(true);
                 refreshLiveData();
               }}
-              className="px-3.5 py-2 bg-red-600 hover:bg-red-500 hover:shadow-red-500/10 shadow-md text-white font-bold font-mono text-xs rounded-lg transition flex items-center gap-1.5 cursor-pointer"
+              className="px-3.5 py-2 bg-red-600 hover:bg-red-500 hover:shadow-red-500/10 shadow-md text-white font-bold font-mono text-xs rounded-lg transition flex items-center gap-1.5 cursor-pointer shrink-0"
             >
               <RefreshCw className="w-4 h-4" />
-              FORCE REFRESH SERVER DATABASE LOGS
+              REFRESH
             </button>
+          </div>
+
+          {/* Export full movement history by date range */}
+          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-3">
+            <p className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-widest">Download Full Movement History (CSV)</p>
+            <div className="flex flex-wrap gap-2 items-end">
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] text-zinc-500 font-mono uppercase">From</span>
+                <input type="date" value={exportFrom} onChange={e => setExportFrom(e.target.value)}
+                  className="bg-zinc-900 border border-zinc-700 text-white text-xs rounded-lg px-2 py-1.5 font-mono" />
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] text-zinc-500 font-mono uppercase">To</span>
+                <input type="date" value={exportTo} onChange={e => setExportTo(e.target.value)}
+                  className="bg-zinc-900 border border-zinc-700 text-white text-xs rounded-lg px-2 py-1.5 font-mono" />
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] text-zinc-500 font-mono uppercase">Employee</span>
+                <select value={exportUserId} onChange={e => setExportUserId(e.target.value)}
+                  className="bg-zinc-900 border border-zinc-700 text-white text-xs rounded-lg px-2 py-1.5 font-mono">
+                  <option value="">All employees</option>
+                  {employees.map(e => <option key={e.id} value={e.dbId ?? ''}>{e.name}</option>)}
+                </select>
+              </div>
+              <a
+                href={apiService.getLocationLogsExportUrl({ from: exportFrom, to: exportTo, user_id: exportUserId ? Number(exportUserId) : undefined })}
+                target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold font-mono rounded-lg transition cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Export CSV
+              </a>
+            </div>
           </div>
 
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <span className="text-[10px] text-zinc-500 font-bold font-mono uppercase block">
-                Location records ({gpsLogs.length})
+                Current live positions ({gpsLogs.length})
               </span>
               <span className="text-[9px] font-mono text-zinc-400">
                 Data Backend Source: <strong className="text-emerald-400">JSON DB Endpoints Connected</strong>
@@ -1312,134 +1429,6 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
         </div>
       )}
 
-      {activeSubTab === 'location_logs' && (
-        <div className="bg-zinc-900/40 border border-zinc-800 p-5 rounded-xl space-y-5" id="compliance-location-logs-subtab">
-          {/* Header + filters */}
-          <div className="flex flex-col gap-3 border-b border-zinc-800 pb-4">
-            <div>
-              <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                <MapPinned className="w-4 h-4 text-red-500" />
-                Employee Location Logs
-              </h2>
-              <p className="text-xs text-zinc-400 mt-0.5">Full movement history. Stays of 10+ minutes at one location are highlighted.</p>
-            </div>
-            <div className="flex flex-wrap gap-2 items-end">
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] text-zinc-500 font-mono uppercase">From</span>
-                <input type="date" value={locLogFrom} onChange={e => setLocLogFrom(e.target.value)}
-                  className="bg-zinc-900 border border-zinc-700 text-white text-xs rounded-lg px-2 py-1.5 font-mono" />
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] text-zinc-500 font-mono uppercase">To</span>
-                <input type="date" value={locLogTo} onChange={e => setLocLogTo(e.target.value)}
-                  className="bg-zinc-900 border border-zinc-700 text-white text-xs rounded-lg px-2 py-1.5 font-mono" />
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] text-zinc-500 font-mono uppercase">Employee</span>
-                <select value={locLogUserId} onChange={e => setLocLogUserId(e.target.value)}
-                  className="bg-zinc-900 border border-zinc-700 text-white text-xs rounded-lg px-2 py-1.5 font-mono">
-                  <option value="">All employees</option>
-                  {employees.map(e => <option key={e.id} value={e.dbId ?? ''}>{e.name}</option>)}
-                </select>
-              </div>
-              <button onClick={fetchLocationLogs}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white text-xs font-bold font-mono rounded-lg transition cursor-pointer">
-                <RefreshCw className={`w-3.5 h-3.5 ${isLoadingLocationLogs ? 'animate-spin' : ''}`} />
-                Load Logs
-              </button>
-              {locationLogs.length > 0 && (
-                <a href={apiService.getLocationLogsExportUrl({ from: locLogFrom, to: locLogTo, user_id: locLogUserId ? Number(locLogUserId) : undefined })}
-                  target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold font-mono rounded-lg transition cursor-pointer">
-                  <Download className="w-3.5 h-3.5" />
-                  Export CSV
-                </a>
-              )}
-            </div>
-          </div>
-
-          {isLoadingLocationLogs ? (
-            <div className="py-16 flex items-center justify-center gap-2 text-zinc-400 text-xs font-mono">
-              <RefreshCw className="w-5 h-5 animate-spin text-red-500" /> Loading location logs...
-            </div>
-          ) : locationLogs.length === 0 ? (
-            <div className="py-16 text-center border border-dashed border-zinc-800 rounded-lg text-zinc-500 text-xs font-mono">
-              No location data for the selected period. Make sure employees are using the mobile app with GPS enabled.
-            </div>
-          ) : (
-            <div className="space-y-5">
-              {locationLogs.map(user => (
-                <div key={user.user_id} className="border border-zinc-800 rounded-xl overflow-hidden">
-                  {/* Employee header */}
-                  <div className="bg-zinc-900 px-4 py-3 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-bold text-red-400 shrink-0">
-                        {user.user_name?.charAt(0)?.toUpperCase() ?? '?'}
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-white leading-none">{user.user_name}</p>
-                        <p className="text-xs text-zinc-400 mt-0.5">{user.employee_code} · {user.department}</p>
-                      </div>
-                    </div>
-                    <span className="text-xs font-mono text-zinc-400 shrink-0">{user.total_pings} pings</span>
-                  </div>
-
-                  {/* Events timeline */}
-                  {user.events.length === 0 ? (
-                    <p className="text-xs text-zinc-500 font-mono p-4">No movement events detected.</p>
-                  ) : (
-                    <div className="divide-y divide-zinc-800/60">
-                      {user.events.map((ev: any, i: number) => (
-                        <div key={i} className={`flex items-start gap-3 px-4 py-3 ${ev.type === 'stay' ? 'bg-amber-500/5' : ''}`}>
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-                            ev.type === 'stay' ? 'bg-amber-500/20' : 'bg-zinc-800'
-                          }`}>
-                            {ev.type === 'stay'
-                              ? <Clock className="w-4 h-4 text-amber-400" />
-                              : <Navigation className="w-4 h-4 text-zinc-400" />
-                            }
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`text-xs font-bold font-mono uppercase px-2 py-0.5 rounded ${
-                                ev.type === 'stay'
-                                  ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                                  : 'bg-zinc-800 text-zinc-400'
-                              }`}>
-                                {ev.type === 'stay' ? `Stay · ${ev.duration_minutes} min` : 'Ping'}
-                              </span>
-                              <span className="text-[10px] font-mono text-zinc-500">
-                                {new Date(ev.start).toLocaleTimeString()}{ev.type === 'stay' ? ` → ${new Date(ev.end).toLocaleTimeString()}` : ''}
-                              </span>
-                            </div>
-                            <p className="text-xs text-zinc-300 mt-1 font-mono">
-                              {ev.lat != null && !isNaN(ev.lat) ? ev.lat.toFixed(5) : '—'}, {ev.lng != null && !isNaN(ev.lng) ? ev.lng.toFixed(5) : '—'}
-                            </p>
-                            {(ev.wifi_ssid || ev.last_app) && (
-                              <p className="text-[10px] text-zinc-500 mt-0.5">
-                                {ev.wifi_ssid && <span>Wi-Fi: {ev.wifi_ssid} · </span>}
-                                {ev.last_app && <span>App: {ev.last_app}</span>}
-                              </p>
-                            )}
-                            <a
-                              href={`https://maps.google.com/?q=${ev.lat},${ev.lng}`}
-                              target="_blank" rel="noopener noreferrer"
-                              className="text-[10px] text-red-400 hover:text-red-300 mt-0.5 inline-block font-mono underline underline-offset-2"
-                            >
-                              View on Google Maps
-                            </a>
-                          </div>
-                          <span className="text-[10px] font-mono text-zinc-600 shrink-0">{ev.ping_count}p</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

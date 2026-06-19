@@ -4,20 +4,35 @@
  */
 
 import React, { useState, useRef } from 'react';
-import { Employee, EmployeeStatus, UserRole } from '../types';
-import { Search, UserPlus, ShieldAlert, ArrowLeft, Mail, Phone, Award, Camera, Upload, Eye, EyeOff } from 'lucide-react';
+import { Employee, EmployeeStatus, UserProfile, UserRole } from '../types';
+import { Search, UserPlus, ShieldAlert, ArrowLeft, Mail, Phone, Award, Camera, Upload, Eye, EyeOff, MapPin, Wifi, Signal, X, Clock } from 'lucide-react';
 import { showAlert } from '../utils/dialog';
 import { apiService } from '../services/api';
 
 interface UsersProps {
   employees: Employee[];
   onAddEmployee: (employee: Employee, facePhoto: File | null, password: string, userRole: UserRole) => void;
+  currentUser: UserProfile;
 }
 
-export default function Users({ employees, onAddEmployee }: UsersProps) {
+export default function Users({ employees, onAddEmployee, currentUser }: UsersProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const isAdmin = currentUser.role === 'Admin' || currentUser.role === 'admin' || currentUser.role === 'super_admin';
+  const [locModal, setLocModal] = useState<{ emp: Employee; data: any | null; loading: boolean } | null>(null);
+
+  const openLocationModal = async (emp: Employee) => {
+    setLocModal({ emp, data: null, loading: true });
+    try {
+      const locs = await apiService.getEmployeeLocations();
+      const loc = locs.find((l: any) => l.user_id === emp.dbId) || null;
+      setLocModal({ emp, data: loc, loading: false });
+    } catch {
+      setLocModal({ emp, data: null, loading: false });
+    }
+  };
 
   // Form states
   const [newEmpName, setNewEmpName] = useState('');
@@ -288,7 +303,11 @@ checkInTime: newEmpStatus === 'Present' ? '09:00 AM' : undefined
                         )}
                       </div>
                       <div className="min-w-0">
-                        <h4 className="text-xs font-bold text-white truncate leading-tight uppercase font-mono tracking-tight">{emp.name}</h4>
+                        <h4
+                          className={`text-xs font-bold text-white truncate leading-tight uppercase font-mono tracking-tight ${isAdmin ? 'cursor-pointer hover:text-emerald-400 transition-colors' : ''}`}
+                          onClick={() => isAdmin && openLocationModal(emp)}
+                          title={isAdmin ? 'Click to view live location' : undefined}
+                        >{emp.name}</h4>
                         <p className="text-[10px] text-zinc-400 truncate mt-0.5 font-sans italic">{emp.role}</p>
                         <span className="text-[9px] bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 mt-1 inline-block font-mono uppercase">
                           {emp.department}
@@ -317,6 +336,104 @@ checkInTime: newEmpStatus === 'Present' ? '09:00 AM' : undefined
                   </div>
                 );
               })
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Location Modal */}
+      {locModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setLocModal(null)}>
+          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-emerald-400" />
+                <span className="text-xs font-bold font-mono text-white uppercase tracking-wider">Live Location</span>
+              </div>
+              <button onClick={() => setLocModal(null)} className="text-zinc-500 hover:text-white transition">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center shrink-0">
+                <span className="text-sm font-bold text-zinc-300">{locModal.emp.name.charAt(0).toUpperCase()}</span>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-white font-mono uppercase">{locModal.emp.name}</p>
+                <p className="text-[10px] text-zinc-400 font-sans">{locModal.emp.email}</p>
+              </div>
+            </div>
+
+            {locModal.loading ? (
+              <div className="text-center py-6 text-zinc-500 text-xs font-mono animate-pulse">Fetching live data...</div>
+            ) : locModal.data ? (
+              <div className="space-y-3">
+                {/* GPS */}
+                <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 space-y-2">
+                  <div className="flex items-center gap-1.5 text-[9px] font-mono text-zinc-500 uppercase font-bold">
+                    <MapPin className="w-3 h-3 text-emerald-400" /> GPS Coordinates
+                  </div>
+                  {locModal.data.latitude && locModal.data.longitude ? (
+                    <>
+                      <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
+                        <div>
+                          <span className="text-zinc-600 block text-[8px] uppercase">Latitude</span>
+                          <span className="text-white font-bold">{parseFloat(locModal.data.latitude).toFixed(6)}</span>
+                        </div>
+                        <div>
+                          <span className="text-zinc-600 block text-[8px] uppercase">Longitude</span>
+                          <span className="text-white font-bold">{parseFloat(locModal.data.longitude).toFixed(6)}</span>
+                        </div>
+                      </div>
+                      <a
+                        href={`https://www.google.com/maps?q=${locModal.data.latitude},${locModal.data.longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[9px] font-mono text-emerald-400 hover:text-emerald-300 underline block"
+                      >
+                        Open in Google Maps →
+                      </a>
+                    </>
+                  ) : (
+                    <p className="text-[10px] text-zinc-500 font-mono">No GPS data received yet.</p>
+                  )}
+                </div>
+
+                {/* Network */}
+                <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 space-y-2">
+                  <div className="flex items-center gap-1.5 text-[9px] font-mono text-zinc-500 uppercase font-bold">
+                    <Wifi className="w-3 h-3 text-blue-400" /> Network
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
+                    <div>
+                      <span className="text-zinc-600 block text-[8px] uppercase">Type</span>
+                      <span className={`font-bold ${locModal.data.network_type === 'wifi' ? 'text-blue-400' : 'text-amber-400'}`}>
+                        {locModal.data.network_type === 'wifi' ? 'Wi-Fi' : locModal.data.network_type || 'Cellular'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-zinc-600 block text-[8px] uppercase">Wi-Fi SSID</span>
+                      <span className="text-white font-bold truncate block">{locModal.data.wifi_ssid || '—'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Last seen */}
+                {locModal.data.updated_at && (
+                  <div className="flex items-center gap-1.5 text-[9px] font-mono text-zinc-500">
+                    <Clock className="w-3 h-3" />
+                    Last updated: {new Date(locModal.data.updated_at).toLocaleString()}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-center space-y-1">
+                <Signal className="w-5 h-5 text-zinc-600 mx-auto" />
+                <p className="text-xs text-zinc-500 font-mono">No location data available.</p>
+                <p className="text-[9px] text-zinc-600 font-mono">This employee hasn't shared their location yet.</p>
+              </div>
             )}
           </div>
         </div>

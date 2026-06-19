@@ -512,3 +512,47 @@ body {
   color: #475569 !important; /* slate-600 */
 }
 
+/* ==========================================================
+   BUTTON UI — Plain background improvements
+   ========================================================== */
+
+/* Dark mode: subtle lift so buttons read above flat zinc-950 */
+button.bg-zinc-900,
+button.bg-zinc-800 {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+button.bg-zinc-900:hover,
+button.bg-zinc-800:hover {
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* Light mode: zinc-900/950 buttons become slate-100 so they're visible on white */
+.theme-light button.bg-zinc-900,
+.theme-light button.bg-zinc-950 {
+  background-color: #f1f5f9 !important; /* slate-100 */
+  border-color: #cbd5e1 !important;
+  color: #1e293b !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+.theme-light button.bg-zinc-900:hover,
+.theme-light button.bg-zinc-950:hover,
+.theme-light button.hover\:bg-zinc-800:hover,
+.theme-light button.hover\:bg-zinc-900:hover {
+  background-color: #e2e8f0 !important; /* slate-200 */
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
+}
+
+/* Light mode: zinc-900 inside panels (not buttons) keep white bg from earlier rules */
+/* Active / selected nav tabs */
+.theme-light .bg-zinc-800 {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+.theme-light .hover\:bg-zinc-800:hover {
+  background-color: #e2e8f0 !important;
+}
+.theme-light .border-zinc-700 {
+  border-color: #94a3b8 !important;
+}
+

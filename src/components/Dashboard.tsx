@@ -6,7 +6,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { Employee, ActivityLog } from '../types';
-import { Users, AlertTriangle, UserCheck, UserMinus, Calendar, ArrowRight, Video, ListFilter, Users2, Moon, Utensils, Zap, FileSliders, Smartphone, ShieldAlert } from 'lucide-react';
+import { Users, UserCheck, UserMinus, Calendar, ArrowRight, Video, ListFilter, Users2, Moon, Utensils, Zap, FileSliders, Smartphone, ShieldAlert } from 'lucide-react';
 import { apiService } from '../services/api';
 
 interface DashboardProps {
@@ -30,9 +30,6 @@ export default function Dashboard({
   const late = employees.filter(e => e.status === 'Late').length;
   const leave = employees.filter(e => e.status === 'On Leave').length;
   const absent = employees.filter(e => e.status === 'Absent').length;
-
-  // Active alerts from activityLogs matching alert type
-  const activeAlerts = activityLogs.filter(log => log.type === 'alert');
 
   // Attendance rate target calculation
   const presentPct = Math.round((present / total) * 100) || 0;
@@ -71,7 +68,7 @@ export default function Dashboard({
       </div>
 
       {/* Live Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3" id="stats-grid-row">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3" id="stats-grid-row">
         <motion.div 
           onClick={() => onNavigate('Attendance', 'Present')}
           whileHover={{ scale: 1.025, borderColor: "rgba(16, 185, 129, 0.45)", backgroundColor: "rgba(24, 24, 27, 0.85)" }}
@@ -151,23 +148,6 @@ export default function Dashboard({
           </div>
         </motion.div>
 
-        <motion.div 
-          onClick={() => onNavigate('Productivity')}
-          whileHover={{ scale: 1.025, borderColor: "rgba(239, 68, 68, 0.65)", backgroundColor: "rgba(24, 24, 27, 0.85)" }}
-          whileTap={{ scale: 0.98 }}
-          className="bg-zinc-900/40 border border-zinc-800 p-4 rounded-xl flex flex-col justify-between col-span-2 lg:col-span-1 cursor-pointer transition-colors shadow-sm" 
-          id="stat-alerts"
-          title="Click to view Live CCTV monitoring feeds"
-        >
-          <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-xs font-mono tracking-wider">Camera Alerts</span>
-            <AlertTriangle className={`w-4.5 h-4.5 ${activeAlerts.length > 0 ? 'text-red-500 animate-bounce' : 'text-zinc-500'}`} />
-          </div>
-          <div className="mt-4">
-            <span className="text-3xl font-extrabold text-white tracking-tight">{activeAlerts.length}</span>
-            <p className="text-[10px] text-zinc-500 font-mono mt-0.5">Active alerts</p>
-          </div>
-        </motion.div>
       </div>
 
       {/* Today's Attendance segmented progress bar */}
@@ -310,10 +290,8 @@ export default function Dashboard({
                     <span className={`absolute -left-1 top-2.5 w-2 h-2 rounded-full ${iconMarker}`} />
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        {log.employeeName ? (
+                        {log.employeeName && (
                           <span className="text-zinc-100 font-semibold text-xs">{log.employeeName}</span>
-                        ) : (
-                          <span className="text-rose-400 font-bold text-xs uppercase tracking-wide">SYSTEM INCIDENT</span>
                         )}
                         {log.role && (
                           <span className="text-[10px] text-zinc-400 bg-zinc-800 px-1.5 py-0.5 rounded font-mono">

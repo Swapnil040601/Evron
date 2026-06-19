@@ -139,6 +139,7 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
   const [todayPunch, setTodayPunch] = useState<any>(null);
   const [isPunching, setIsPunching] = useState(false);
   const [elapsedDisplay, setElapsedDisplay] = useState('');
+  const [punchRemarks, setPunchRemarks] = useState('');
 
   // Real device GPS + internet status (replaces mock for enforcement)
   const realDevice = useRealDeviceStatus(profile.name);
@@ -449,12 +450,17 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
     setIsPunching(true);
     try {
       const deviceInfo = await getDeviceInfo();
+      // Only send selfie if it's under 2MB base64 (~1.5MB image) to avoid timeout
+      const selfieToSend = selfiePunchInImg && selfiePunchInImg.length < 2_000_000 ? selfiePunchInImg : null;
       const record = await apiService.punchIn({
         lat: realDevice.locationReady ? realDevice.latitude : null,
         lng: realDevice.locationReady ? realDevice.longitude : null,
         wifi_ssid: deviceInfo.wifiSsid,
+        remarks: punchRemarks.trim() || null,
+        selfie_base64: selfieToSend,
       });
       setTodayPunch(record);
+      setPunchRemarks('');
       triggerBanner('success', `Punched in at ${new Date(record.mobile_punch_in).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`);
     } catch (err: any) {
       triggerBanner('err', err.message || 'Punch in failed.');
@@ -471,9 +477,11 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
     }
     setIsPunching(true);
     try {
+      const selfieOutToSend = selfiePunchOutImg && selfiePunchOutImg.length < 2_000_000 ? selfiePunchOutImg : null;
       const record = await apiService.punchOut({
         lat: realDevice.locationReady ? realDevice.latitude : null,
         lng: realDevice.locationReady ? realDevice.longitude : null,
+        selfie_base64: selfieOutToSend,
       });
       setTodayPunch(record);
       triggerBanner('success', `Punched out at ${new Date(record.mobile_punch_out).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`);
@@ -517,7 +525,32 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
   return (
     <div className="h-screen max-h-screen overflow-hidden bg-transparent text-zinc-100 flex flex-col font-sans relative" id="user-portal-workspace">
       <AuraBackground />
-      
+
+      {/* Mandatory GPS Blocker — covers entire app when location is disabled */}
+      {!realDevice.gpsEnabled && !realDevice.checking && (
+        <div className="fixed inset-0 z-[999] bg-zinc-950/98 backdrop-blur-sm flex flex-col items-center justify-center p-8 text-center">
+          <div className="w-20 h-20 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center mb-6 animate-pulse">
+            <MapPin className="w-10 h-10 text-red-500" />
+          </div>
+          <h2 className="text-xl font-black text-white uppercase tracking-wider mb-3">Location Required</h2>
+          <p className="text-sm text-zinc-400 mb-4 max-w-xs leading-relaxed">
+            {realDevice.permissionDenied
+              ? 'Location permission has been denied. Go to Settings → Apps → Permissions and enable Location for this app.'
+              : 'GPS / Location services are OFF. Enable Location to continue using the app during working hours.'}
+          </p>
+          <div className="bg-red-950/40 border border-red-500/20 rounded-xl p-3 text-xs text-red-300 font-mono mb-6 max-w-sm">
+            Your manager has been notified. App access is restricted until location is restored.
+          </div>
+          <button
+            onClick={handleRefreshLocation}
+            disabled={locationRefreshing}
+            className="px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-black font-mono rounded-xl uppercase tracking-widest transition active:scale-95 disabled:opacity-50"
+          >
+            {locationRefreshing ? 'Retrying...' : 'Retry GPS'}
+          </button>
+        </div>
+      )}
+
       {/* Dynamic top notifications strip */}
       {notification && (
         <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-3 rounded-xl border text-xs font-mono shadow-2xl flex items-center gap-2 animate-bounce ${
@@ -784,6 +817,17 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
                               📍 {Number(todayPunch.punch_in_lat).toFixed(4)}, {Number(todayPunch.punch_in_lng).toFixed(4)}
                             </span>
                           )}
+                          {todayPunch.punch_in_selfie && (
+                            <img
+                              src={apiService.getFileUrl(todayPunch.punch_in_selfie)}
+                              alt="Punch-in selfie"
+                              className="w-full h-20 object-cover rounded-lg border border-emerald-500/30 mt-1.5"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            />
+                          )}
+                          {todayPunch.remarks && (
+                            <span className="text-[9px] text-zinc-400 font-mono block mt-0.5 italic">"{todayPunch.remarks}"</span>
+                          )}
                         </>
                       ) : (
                         <span className="text-sm font-mono text-zinc-600">—</span>
@@ -801,6 +845,14 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
                             <span className="text-[9px] text-zinc-500 font-mono block mt-0.5">
                               📍 {Number(todayPunch.punch_out_lat).toFixed(4)}, {Number(todayPunch.punch_out_lng).toFixed(4)}
                             </span>
+                          )}
+                          {todayPunch.punch_out_selfie && (
+                            <img
+                              src={apiService.getFileUrl(todayPunch.punch_out_selfie)}
+                              alt="Punch-out selfie"
+                              className="w-full h-20 object-cover rounded-lg border border-zinc-600/30 mt-1.5"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            />
                           )}
                         </>
                       ) : (
@@ -826,6 +878,20 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
                       </span>
                     </div>
                   </div>
+
+                  {/* Remarks input — only show when not yet punched in */}
+                  {!todayPunch?.mobile_punch_in && !todayPunch?.mobile_punch_out && (
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-mono text-zinc-500 uppercase tracking-wider block">Remarks (optional)</label>
+                      <textarea
+                        rows={2}
+                        placeholder="Add a note for this punch-in..."
+                        value={punchRemarks}
+                        onChange={e => setPunchRemarks(e.target.value)}
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-red-500 resize-none font-mono"
+                      />
+                    </div>
+                  )}
 
                   {/* Action Button */}
                   {!todayPunch?.mobile_punch_out && (
@@ -1046,6 +1112,7 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
                       <th className="p-4 font-bold">CHECK-IN</th>
                       <th className="p-4 font-bold">CHECK-OUT</th>
                       <th className="p-4 font-bold">PRODUCTIVE</th>
+                      <th className="p-4 font-bold">SELFIES</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-900 font-sans">
@@ -1065,6 +1132,31 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
                         <td className="p-4 font-mono text-zinc-300">{row.check_in || '--:--'}</td>
                         <td className="p-4 font-mono text-zinc-300">{row.check_out || '--:--'}</td>
                         <td className="p-4 font-mono font-bold text-white">{row.productive_hours} Hrs</td>
+                        <td className="p-3">
+                          <div className="flex gap-1.5">
+                            {row.punch_in_selfie && (
+                              <img
+                                src={apiService.getFileUrl(row.punch_in_selfie)}
+                                alt="in"
+                                title="Punch-in selfie"
+                                className="w-9 h-9 rounded object-cover border border-emerald-500/40 cursor-pointer hover:scale-125 transition-transform"
+                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                              />
+                            )}
+                            {row.punch_out_selfie && (
+                              <img
+                                src={apiService.getFileUrl(row.punch_out_selfie)}
+                                alt="out"
+                                title="Punch-out selfie"
+                                className="w-9 h-9 rounded object-cover border border-zinc-600/40 cursor-pointer hover:scale-125 transition-transform"
+                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                              />
+                            )}
+                            {!row.punch_in_selfie && !row.punch_out_selfie && (
+                              <span className="text-zinc-700 text-[9px] font-mono">—</span>
+                            )}
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

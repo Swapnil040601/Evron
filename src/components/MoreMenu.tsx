@@ -84,13 +84,6 @@ export default function MoreMenu({
       tag: 'SAFETY'
     },
     {
-      id: 'Secured',
-      name: 'Gate Access',
-      desc: 'Door lock status and access log',
-      icon: <ShieldAlert className="w-5 h-5 text-teal-400" />,
-      tag: 'ACCESS'
-    },
-    {
       id: 'Reports',
       name: 'Reports',
       desc: 'Download attendance and expense reports',
@@ -137,9 +130,6 @@ export default function MoreMenu({
             <AdminStatus mode="Fire" events={securityEvents} onAddEvent={onAddSecurityEvent} />
           )}
 
-          {activeTool === 'Secured' && (
-            <AdminStatus mode="Secured" events={securityEvents} onAddEvent={onAddSecurityEvent} />
-          )}
 
           {activeTool === 'Reports' && (
             <Reports onSyncData={onSyncData} employees={employees} />

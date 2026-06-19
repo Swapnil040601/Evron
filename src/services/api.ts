@@ -652,12 +652,26 @@ class ApiService {
           ? new Date(r.mobile_punch_out).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
           : null,
         productive_hours: 0,
+        punch_in_selfie: r.punch_in_selfie || null,
+        punch_out_selfie: r.punch_out_selfie || null,
+        remarks: r.remarks || null,
       }));
     }
     return this.attendance;
   }
 
-  public async punchIn(data: { lat?: number | null; lng?: number | null; wifi_ssid?: string | null }): Promise<any> {
+  public async getTodayAttendanceSelfies(): Promise<any[]> {
+    if (this.config.useLive) {
+      const res = await fetch(`${this.config.baseUrl}/attendance/today/selfies`, {
+        headers: this.getHeaders()
+      });
+      if (!res.ok) return [];
+      return await res.json();
+    }
+    return [];
+  }
+
+  public async punchIn(data: { lat?: number | null; lng?: number | null; wifi_ssid?: string | null; remarks?: string | null; selfie_base64?: string | null }): Promise<any> {
     if (this.config.useLive) {
       const res = await fetch(`${this.config.baseUrl}/attendance/punch-in`, {
         method: 'POST',
@@ -671,7 +685,7 @@ class ApiService {
     return { mobile_punch_in: new Date().toISOString(), status: 'Present', punch_in_lat: data.lat, punch_in_lng: data.lng };
   }
 
-  public async punchOut(data: { lat?: number | null; lng?: number | null }): Promise<any> {
+  public async punchOut(data: { lat?: number | null; lng?: number | null; selfie_base64?: string | null }): Promise<any> {
     if (this.config.useLive) {
       const res = await fetch(`${this.config.baseUrl}/attendance/punch-out`, {
         method: 'POST',
