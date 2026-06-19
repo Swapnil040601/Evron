@@ -110,6 +110,22 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
     }
   };
 
+  const [fieldDutySet, setFieldDutySet] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem('evron_field_duty');
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch { return new Set(); }
+  });
+
+  const toggleFieldDuty = (empId: string) => {
+    setFieldDutySet(prev => {
+      const next = new Set(prev);
+      if (next.has(empId)) next.delete(empId); else next.add(empId);
+      localStorage.setItem('evron_field_duty', JSON.stringify([...next]));
+      return next;
+    });
+  };
+
   // Initial load + poll every 30s
   useEffect(() => {
     setIsLoadingGps(true);
@@ -657,6 +673,21 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
                   </div>
                 </div>
 
+                {/* Field Duty toggle */}
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-mono text-zinc-500 uppercase">Field Duty</span>
+                  <button
+                    onClick={() => toggleFieldDuty(selectedEmpId)}
+                    className={`px-2.5 py-1 rounded-lg text-[9px] font-mono font-bold uppercase border transition cursor-pointer ${
+                      fieldDutySet.has(selectedEmpId)
+                        ? 'bg-amber-500/15 text-amber-400 border-amber-500/40'
+                        : 'bg-zinc-900 text-zinc-500 border-zinc-800 hover:border-zinc-600'
+                    }`}
+                  >
+                    {fieldDutySet.has(selectedEmpId) ? 'ON FIELD' : 'IN OFFICE'}
+                  </button>
+                </div>
+
                 {/* Quick status badges */}
                 <div className="flex flex-wrap gap-1.5">
                   {selectedEmpState.isDeveloperModeOn && (
@@ -744,6 +775,7 @@ export default function ProductivityComplianceHub({ employees, onTriggerAlert }:
                     lng,
                     status: emp.status,
                     insideGeofence: inside,
+                    isFieldDuty: fieldDutySet.has(emp.id),
                   } as MapEmployee;
                 })}
               />

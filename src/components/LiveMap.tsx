@@ -3,23 +3,28 @@ import { MapContainer, TileLayer, Marker, Circle, Popup, useMap, useMapEvents } 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// Inline SVG markers — no CDN dependency, always works in Capacitor APK
-function makeDotIcon(color: string) {
+function makeDotIcon(color: string, ring?: string) {
+  const ringSvg = ring
+    ? `<circle cx="16" cy="16" r="14" fill="none" stroke="${ring}" stroke-width="2" opacity="0.5"/>
+       <circle cx="16" cy="16" r="14" fill="none" stroke="${ring}" stroke-width="2" opacity="0.3"><animate attributeName="r" from="14" to="20" dur="1.5s" repeatCount="indefinite"/><animate attributeName="opacity" from="0.4" to="0" dur="1.5s" repeatCount="indefinite"/></circle>`
+    : '';
   return L.divIcon({
-    html: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-      <circle cx="12" cy="12" r="9" fill="${color}" stroke="white" stroke-width="2.5"/>
-      <circle cx="12" cy="12" r="3.5" fill="white" opacity="0.8"/>
+    html: `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+      ${ringSvg}
+      <circle cx="16" cy="16" r="9" fill="${color}" stroke="white" stroke-width="2.5"/>
+      <circle cx="16" cy="16" r="3.5" fill="white" opacity="0.8"/>
     </svg>`,
     className: '',
-    iconSize: [24, 24],
-    iconAnchor: [12, 12],
-    popupAnchor: [0, -14],
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+    popupAnchor: [0, -18],
   });
 }
 
-const selfIcon    = makeDotIcon('#22c55e');   // green — self
-const insideIcon  = makeDotIcon('#3b82f6');   // blue  — inside geofence
-const outsideIcon = makeDotIcon('#ef4444');   // red   — outside geofence
+const adminIcon  = makeDotIcon('#3b82f6');                // blue — admin (you)
+const insideIcon = makeDotIcon('#22c55e');                 // green — inside zone
+const outsideIcon = makeDotIcon('#ef4444', '#ef4444');     // red + pulsing ring — outside zone
+const fieldIcon  = makeDotIcon('#f59e0b');                 // amber — on field duty
 
 export interface MapEmployee {
   id: string;
@@ -28,13 +33,13 @@ export interface MapEmployee {
   lng: number;
   status: string;
   insideGeofence: boolean;
+  isFieldDuty?: boolean;
 }
 
 interface LiveMapProps {
   centerLat: number;
   centerLng: number;
   zoom?: number;
-  /** Fixed office/geofence centre. Only shown in admin (non-selfMode) view. */
   geofenceLat?: number;
   geofenceLng?: number;
   geofenceRadius?: number;
@@ -42,7 +47,6 @@ interface LiveMapProps {
   selfMode?: boolean;
   height?: string;
   onMapClick?: (lat: number, lng: number) => void;
-  /** Admin's own real-time GPS — shows a green "You" marker separate from employees */
   selfLat?: number;
   selfLng?: number;
 }
@@ -60,16 +64,12 @@ function MapController({ lat, lng }: { lat: number; lng: number }) {
   const map = useMap();
   const firstRef = useRef(true);
 
-  // Fix grey-tile sizing bug: Leaflet measures the container before it's painted
   useEffect(() => {
     const t1 = setTimeout(() => map.invalidateSize(), 150);
     const t2 = setTimeout(() => map.invalidateSize(), 600);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [map]);
 
-  // Update map position when GPS changes:
-  // - First fix: animate with flyTo so it feels alive
-  // - Subsequent updates: instant setView so the map doesn't constantly chase the pin
   useEffect(() => {
     if (firstRef.current) {
       firstRef.current = false;
@@ -80,6 +80,17 @@ function MapController({ lat, lng }: { lat: number; lng: number }) {
   }, [lat, lng, map]);
 
   return null;
+}
+
+function getEmpIcon(emp: MapEmployee) {
+  if (emp.isFieldDuty) return fieldIcon;
+  return emp.insideGeofence ? insideIcon : outsideIcon;
+}
+
+function getEmpStatusLabel(emp: MapEmployee) {
+  if (emp.isFieldDuty) return { text: 'On Field Duty', color: '#d97706' };
+  if (emp.insideGeofence) return { text: 'Inside zone', color: '#16a34a' };
+  return { text: 'Outside zone', color: '#dc2626' };
 }
 
 export default function LiveMap({
@@ -96,8 +107,6 @@ export default function LiveMap({
   selfLat,
   selfLng,
 }: LiveMapProps) {
-  // Geofence circle center: use explicit geofence coords if provided,
-  // otherwise fall back to map centre (admin view default)
   const fenceLat = geofenceLat ?? centerLat;
   const fenceLng = geofenceLng ?? centerLng;
 
@@ -123,7 +132,6 @@ export default function LiveMap({
         <MapController lat={centerLat} lng={centerLng} />
         {onMapClick && <MapClickHandler onMapClick={onMapClick} />}
 
-        {/* Geofence boundary — only shown in admin view (not selfMode) */}
         {!selfMode && (
           <Circle
             center={[fenceLat, fenceLng]}
@@ -138,43 +146,44 @@ export default function LiveMap({
           />
         )}
 
-        {/* Admin's own real-time GPS pin — shown when selfLat/selfLng provided */}
+        {/* Admin's own GPS — blue dot */}
         {!selfMode && selfLat !== undefined && selfLng !== undefined && (
-          <Marker position={[selfLat, selfLng]} icon={selfIcon}>
+          <Marker position={[selfLat, selfLng]} icon={adminIcon}>
             <Popup>
-              <strong>You (Admin)</strong><br />
-              {selfLat.toFixed(5)}, {selfLng.toFixed(5)}<br />
-              <span style={{ color: '#22c55e', fontSize: 11 }}>Live GPS</span>
+              <div style={{ fontFamily: 'monospace', fontSize: 12 }}>
+                <strong>You (Admin)</strong><br />
+                <span style={{ color: '#3b82f6' }}>Live GPS</span>
+              </div>
             </Popup>
           </Marker>
         )}
 
         {selfMode ? (
           employees.length > 0 && (
-            <Marker position={[employees[0].lat, employees[0].lng]} icon={selfIcon}>
+            <Marker position={[employees[0].lat, employees[0].lng]} icon={insideIcon}>
               <Popup>
-                <strong>{employees[0].name}</strong><br />
-                {employees[0].lat.toFixed(5)}, {employees[0].lng.toFixed(5)}<br />
-                {employees[0].status}
+                <div style={{ fontFamily: 'monospace', fontSize: 12 }}>
+                  <strong>{employees[0].name}</strong><br />
+                  <span style={{ color: '#16a34a' }}>{employees[0].status}</span>
+                </div>
               </Popup>
             </Marker>
           )
         ) : (
-          employees.map(emp => (
-            <Marker
-              key={emp.id}
-              position={[emp.lat, emp.lng]}
-              icon={emp.insideGeofence ? insideIcon : outsideIcon}
-            >
-              <Popup>
-                <strong>{emp.name}</strong><br />
-                {emp.lat.toFixed(5)}, {emp.lng.toFixed(5)}<br />
-                <b style={{ color: emp.insideGeofence ? '#16a34a' : '#dc2626' }}>
-                  {emp.insideGeofence ? 'Inside zone' : '⚠ Outside zone'}
-                </b>
-              </Popup>
-            </Marker>
-          ))
+          employees.map(emp => {
+            const label = getEmpStatusLabel(emp);
+            return (
+              <Marker key={emp.id} position={[emp.lat, emp.lng]} icon={getEmpIcon(emp)}>
+                <Popup>
+                  <div style={{ fontFamily: 'monospace', fontSize: 12, minWidth: 140 }}>
+                    <strong style={{ fontSize: 13 }}>{emp.name}</strong><br />
+                    <span style={{ color: '#64748b', fontSize: 10 }}>{emp.id}</span><br />
+                    <b style={{ color: label.color }}>{label.text}</b>
+                  </div>
+                </Popup>
+              </Marker>
+            );
+          })
         )}
       </MapContainer>
     </div>
