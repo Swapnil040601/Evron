@@ -58,7 +58,8 @@ export default function Dashboard({
           </button>
           <button
             onClick={() => onNavigate('Users')}
-            className="flex items-center gap-2 bg-emerald-600 border border-emerald-500 text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-emerald-500 transition shadow font-mono"
+            className="flex items-center gap-2 text-xs font-bold px-3 py-2 rounded-lg transition shadow font-mono"
+            style={{ backgroundColor: '#059669', color: '#ffffff', border: '1px solid #059669' }}
             id="dash-view-staff-btn"
           >
             <Users className="w-3.5 h-3.5" />
