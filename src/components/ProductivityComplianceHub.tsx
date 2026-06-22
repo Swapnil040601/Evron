@@ -913,6 +913,67 @@ export default function ProductivityComplianceHub({ employees, currentUserCode, 
               </div>
             </div>
 
+            {/* Battery & Charging */}
+            <div className="bg-zinc-900/40 border border-zinc-800 p-4 rounded-xl space-y-3">
+              <div className="flex items-center gap-2 border-b border-zinc-800 pb-2 justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-base leading-none">🔋</span>
+                  <h3 className="text-xs font-bold font-mono text-white uppercase tracking-wider">Battery & Charging</h3>
+                </div>
+                {(selectedEmpState as any).batteryLevel >= 0 && (
+                  <span className={`text-lg font-black font-mono ${
+                    (selectedEmpState as any).batteryLevel > 50 ? 'text-emerald-400' :
+                    (selectedEmpState as any).batteryLevel > 20 ? 'text-amber-400' :
+                    'text-red-400 animate-pulse'
+                  }`}>
+                    {(selectedEmpState as any).batteryLevel}%
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 bg-zinc-950 border border-zinc-850 rounded-lg">
+                  <span className="text-[9px] text-zinc-500 font-mono uppercase block">Charging</span>
+                  <span className={`text-xs font-bold font-mono ${
+                    (selectedEmpState as any).chargingStatus === 'charging' ? 'text-emerald-400' :
+                    (selectedEmpState as any).chargingStatus === 'full' ? 'text-blue-400' :
+                    'text-zinc-300'
+                  }`}>
+                    {(selectedEmpState as any).chargingStatus === 'charging' ? '⚡ Charging' :
+                     (selectedEmpState as any).chargingStatus === 'full' ? '✅ Full' :
+                     (selectedEmpState as any).chargingStatus === 'discharging' ? 'Discharging' :
+                     (selectedEmpState as any).chargingStatus || '—'}
+                  </span>
+                </div>
+                <div className="p-3 bg-zinc-950 border border-zinc-850 rounded-lg">
+                  <span className="text-[9px] text-zinc-500 font-mono uppercase block">Health</span>
+                  <span className={`text-xs font-bold font-mono ${
+                    (selectedEmpState as any).batteryHealth === 'good' ? 'text-emerald-400' :
+                    (selectedEmpState as any).batteryHealth === 'overheat' ? 'text-red-400' :
+                    'text-zinc-300'
+                  }`}>
+                    {(selectedEmpState as any).batteryHealth === 'good' ? 'Good' :
+                     (selectedEmpState as any).batteryHealth === 'overheat' ? '🔥 Overheat' :
+                     (selectedEmpState as any).batteryHealth === 'dead' ? '💀 Dead' :
+                     (selectedEmpState as any).batteryHealth === 'cold' ? '🥶 Cold' :
+                     (selectedEmpState as any).batteryHealth || '—'}
+                  </span>
+                </div>
+              </div>
+              {(selectedEmpState as any).batteryTemp > 0 && (
+                <div className="p-3 bg-zinc-950 border border-zinc-850 rounded-lg flex items-center justify-between">
+                  <span className="text-[9px] text-zinc-500 font-mono uppercase">Temperature</span>
+                  <span className={`text-xs font-bold font-mono ${(selectedEmpState as any).batteryTemp > 40 ? 'text-red-400' : 'text-zinc-300'}`}>
+                    {(selectedEmpState as any).batteryTemp}°C
+                  </span>
+                </div>
+              )}
+              {(selectedEmpState as any).batteryLevel >= 0 && (selectedEmpState as any).batteryLevel <= 15 && (
+                <div className="bg-red-950/20 border border-red-500/20 rounded-lg px-3 py-2 text-[9px] text-red-300 font-mono animate-pulse">
+                  ⚠️ Critical battery — employee device may shut down soon. Tracking will stop.
+                </div>
+              )}
+            </div>
+
             {/* 2. MDM Mobile App Guards / WIFI Logs Panel */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Phone Security */}

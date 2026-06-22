@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Circle, Popup, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Circle, Popup, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -63,6 +63,7 @@ function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number
 function MapController({ lat, lng }: { lat: number; lng: number }) {
   const map = useMap();
   const firstRef = useRef(true);
+  const prevRef = useRef({ lat: 0, lng: 0 });
 
   useEffect(() => {
     const t1 = setTimeout(() => map.invalidateSize(), 150);
@@ -71,11 +72,14 @@ function MapController({ lat, lng }: { lat: number; lng: number }) {
   }, [map]);
 
   useEffect(() => {
+    if (lat === 0 && lng === 0) return;
+    const moved = Math.abs(lat - prevRef.current.lat) > 0.0001 || Math.abs(lng - prevRef.current.lng) > 0.0001;
+    prevRef.current = { lat, lng };
     if (firstRef.current) {
       firstRef.current = false;
       map.flyTo([lat, lng], map.getZoom(), { animate: true, duration: 1.2 });
-    } else {
-      map.setView([lat, lng], map.getZoom(), { animate: false });
+    } else if (moved) {
+      map.panTo([lat, lng], { animate: true, duration: 0.5 });
     }
   }, [lat, lng, map]);
 
@@ -149,6 +153,9 @@ export default function LiveMap({
         {/* Admin's own GPS — blue dot */}
         {!selfMode && selfLat !== undefined && selfLng !== undefined && (
           <Marker position={[selfLat, selfLng]} icon={adminIcon}>
+            <Tooltip direction="top" offset={[0, -14]} permanent className="leaflet-tooltip-name">
+              You
+            </Tooltip>
             <Popup>
               <div style={{ fontFamily: 'monospace', fontSize: 12 }}>
                 <strong>You (Admin)</strong><br />
@@ -161,6 +168,9 @@ export default function LiveMap({
         {selfMode ? (
           employees.length > 0 && (
             <Marker position={[employees[0].lat, employees[0].lng]} icon={insideIcon}>
+              <Tooltip direction="top" offset={[0, -14]} permanent className="leaflet-tooltip-name">
+                {employees[0].name.split(' ')[0]}
+              </Tooltip>
               <Popup>
                 <div style={{ fontFamily: 'monospace', fontSize: 12 }}>
                   <strong>{employees[0].name}</strong><br />
@@ -174,11 +184,17 @@ export default function LiveMap({
             const label = getEmpStatusLabel(emp);
             return (
               <Marker key={emp.id} position={[emp.lat, emp.lng]} icon={getEmpIcon(emp)}>
+                <Tooltip direction="top" offset={[0, -14]} permanent className="leaflet-tooltip-name">
+                  {emp.name.split(' ')[0]}
+                </Tooltip>
                 <Popup>
-                  <div style={{ fontFamily: 'monospace', fontSize: 12, minWidth: 140 }}>
-                    <strong style={{ fontSize: 13 }}>{emp.name}</strong><br />
+                  <div style={{ fontFamily: 'monospace', fontSize: 12, minWidth: 160 }}>
+                    <strong style={{ fontSize: 14 }}>{emp.name}</strong><br />
                     <span style={{ color: '#64748b', fontSize: 10 }}>{emp.id}</span><br />
-                    <b style={{ color: label.color }}>{label.text}</b>
+                    <b style={{ color: label.color, fontSize: 12 }}>{label.text}</b><br />
+                    <span style={{ color: '#94a3b8', fontSize: 10 }}>
+                      {emp.lat.toFixed(5)}, {emp.lng.toFixed(5)}
+                    </span>
                   </div>
                 </Popup>
               </Marker>
