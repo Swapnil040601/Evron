@@ -196,6 +196,10 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
           other_app_opens: deviceInfo.otherAppOpens,
           app_opens_detail: deviceInfo.appOpensDetail,
           device_id: deviceInfo.deviceId,
+          battery_level: deviceInfo.batteryLevel,
+          charging_status: deviceInfo.chargingStatus,
+          battery_health: deviceInfo.batteryHealth,
+          battery_temp: deviceInfo.batteryTemp,
         });
       } catch {}
     };

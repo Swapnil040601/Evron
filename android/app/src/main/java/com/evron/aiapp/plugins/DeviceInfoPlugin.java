@@ -5,11 +5,13 @@ import android.app.usage.UsageEvents;
 import android.app.usage.UsageStatsManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.location.LocationManager;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
+import android.os.BatteryManager;
 import android.provider.Settings;
 
 import com.getcapacitor.JSObject;
@@ -161,6 +163,49 @@ public class DeviceInfoPlugin extends Plugin {
 
         result.put("otherAppOpens", totalOtherAppOpens);
         result.put("appOpensDetail", appOpenDetail.toString());
+
+        // ── Battery Info ──────────────────────────────────────────────────────
+        try {
+            IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+            Intent batteryStatus = context.registerReceiver(null, ifilter);
+            if (batteryStatus != null) {
+                int level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+                int scale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, 100);
+                int pct = (int) ((level / (float) scale) * 100);
+                result.put("batteryLevel", pct);
+
+                int status = batteryStatus.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
+                String chargingStatus = "unknown";
+                if (status == BatteryManager.BATTERY_STATUS_CHARGING) chargingStatus = "charging";
+                else if (status == BatteryManager.BATTERY_STATUS_DISCHARGING) chargingStatus = "discharging";
+                else if (status == BatteryManager.BATTERY_STATUS_FULL) chargingStatus = "full";
+                else if (status == BatteryManager.BATTERY_STATUS_NOT_CHARGING) chargingStatus = "not_charging";
+                result.put("chargingStatus", chargingStatus);
+
+                int plugged = batteryStatus.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0);
+                String plugType = "none";
+                if (plugged == BatteryManager.BATTERY_PLUGGED_AC) plugType = "ac";
+                else if (plugged == BatteryManager.BATTERY_PLUGGED_USB) plugType = "usb";
+                else if (plugged == BatteryManager.BATTERY_PLUGGED_WIRELESS) plugType = "wireless";
+                result.put("plugType", plugType);
+
+                int health = batteryStatus.getIntExtra(BatteryManager.EXTRA_HEALTH, -1);
+                String healthStr = "unknown";
+                if (health == BatteryManager.BATTERY_HEALTH_GOOD) healthStr = "good";
+                else if (health == BatteryManager.BATTERY_HEALTH_OVERHEAT) healthStr = "overheat";
+                else if (health == BatteryManager.BATTERY_HEALTH_DEAD) healthStr = "dead";
+                else if (health == BatteryManager.BATTERY_HEALTH_OVER_VOLTAGE) healthStr = "over_voltage";
+                else if (health == BatteryManager.BATTERY_HEALTH_COLD) healthStr = "cold";
+                result.put("batteryHealth", healthStr);
+
+                int temp = batteryStatus.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0);
+                result.put("batteryTemp", temp / 10.0);
+            }
+        } catch (Exception e) {
+            result.put("batteryLevel", -1);
+            result.put("chargingStatus", "unknown");
+            result.put("batteryHealth", "unknown");
+        }
 
         call.resolve(result);
     }

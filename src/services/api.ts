@@ -1485,6 +1485,10 @@ class ApiService {
     other_app_opens?: number;
     app_opens_detail?: string;
     device_id?: string | null;
+    battery_level?: number;
+    charging_status?: string;
+    battery_health?: string;
+    battery_temp?: number;
   }): Promise<void> {
     if (!this.config.useLive) return;
     try {
@@ -1549,6 +1553,10 @@ class ApiService {
         otherAppOpens: loc.other_app_opens || 0,
         appOpensDetail: loc.app_opens_detail || {},
         deviceId: loc.device_id || null,
+        batteryLevel: loc.battery_level ?? -1,
+        chargingStatus: loc.charging_status || 'unknown',
+        batteryHealth: loc.battery_health || 'unknown',
+        batteryTemp: loc.battery_temp ?? 0,
       };
     }
     return states;

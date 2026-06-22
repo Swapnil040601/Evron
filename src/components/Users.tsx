@@ -493,6 +493,58 @@ checkInTime: newEmpStatus === 'Present' ? '09:00 AM' : undefined
                       </div>
                     </div>
 
+                    {/* Battery */}
+                    <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-[9px] font-mono text-zinc-500 uppercase font-bold">
+                          <span className="text-lg leading-none">🔋</span> Battery
+                        </div>
+                        {locModal.data.battery_level != null && locModal.data.battery_level >= 0 && (
+                          <span className={`text-sm font-black font-mono ${
+                            locModal.data.battery_level > 50 ? 'text-emerald-400' :
+                            locModal.data.battery_level > 20 ? 'text-amber-400' :
+                            'text-red-400 animate-pulse'
+                          }`}>
+                            {locModal.data.battery_level}%
+                          </span>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
+                        <div>
+                          <span className="text-zinc-600 block text-[8px] uppercase">Status</span>
+                          <span className={`font-bold ${
+                            locModal.data.charging_status === 'charging' ? 'text-emerald-400' :
+                            locModal.data.charging_status === 'full' ? 'text-blue-400' :
+                            'text-zinc-300'
+                          }`}>
+                            {locModal.data.charging_status === 'charging' ? '⚡ Charging' :
+                             locModal.data.charging_status === 'full' ? '✅ Full' :
+                             locModal.data.charging_status === 'discharging' ? 'Discharging' :
+                             locModal.data.charging_status || 'Unknown'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-zinc-600 block text-[8px] uppercase">Health</span>
+                          <span className={`font-bold ${
+                            locModal.data.battery_health === 'good' ? 'text-emerald-400' :
+                            locModal.data.battery_health === 'overheat' ? 'text-red-400' :
+                            'text-zinc-300'
+                          }`}>
+                            {locModal.data.battery_health === 'good' ? 'Good' :
+                             locModal.data.battery_health === 'overheat' ? '🔥 Overheat' :
+                             locModal.data.battery_health === 'dead' ? '💀 Dead' :
+                             locModal.data.battery_health === 'cold' ? '🥶 Cold' :
+                             locModal.data.battery_health || 'Unknown'}
+                          </span>
+                        </div>
+                      </div>
+                      {locModal.data.battery_temp > 0 && (
+                        <div className="text-[9px] font-mono text-zinc-500">
+                          Temperature: <strong className={`${locModal.data.battery_temp > 40 ? 'text-red-400' : 'text-zinc-300'}`}>{locModal.data.battery_temp}°C</strong>
+                        </div>
+                      )}
+                    </div>
+
                     {/* Device Security */}
                     <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 space-y-2">
                       <div className="flex items-center gap-1.5 text-[9px] font-mono text-zinc-500 uppercase font-bold">

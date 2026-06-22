@@ -1,17 +1,18 @@
 import { registerPlugin, Capacitor } from '@capacitor/core';
 
 export interface DeviceInfoResult {
-  /** Stable Android device identifier (Settings.Secure.ANDROID_ID) */
   deviceId: string | null;
   wifiSsid: string | null;
-  /** True when GPS or network location provider is enabled on the device */
   locationEnabled: boolean;
   isDeveloperMode: boolean;
   hasUsagePermission: boolean;
-  /** Total times employee opened a non-Evron app since midnight */
   otherAppOpens: number;
-  /** JSON string: { "WhatsApp": 5, "YouTube": 3, ... } */
   appOpensDetail: string;
+  batteryLevel: number;
+  chargingStatus: 'charging' | 'discharging' | 'full' | 'not_charging' | 'unknown';
+  plugType: 'ac' | 'usb' | 'wireless' | 'none';
+  batteryHealth: 'good' | 'overheat' | 'dead' | 'over_voltage' | 'cold' | 'unknown';
+  batteryTemp: number;
 }
 
 interface DeviceInfoPlugin {
@@ -29,6 +30,11 @@ const fallback: DeviceInfoResult = {
   hasUsagePermission: false,
   otherAppOpens: 0,
   appOpensDetail: '{}',
+  batteryLevel: -1,
+  chargingStatus: 'unknown',
+  plugType: 'none',
+  batteryHealth: 'unknown',
+  batteryTemp: 0,
 };
 
 export async function getDeviceInfo(): Promise<DeviceInfoResult> {
