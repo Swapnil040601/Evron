@@ -796,7 +796,7 @@ export default function ProductivityComplianceHub({ employees, currentUserCode, 
               <LiveMap
                 centerLat={selfPos?.lat ?? geofenceCenter.lat ?? 0}
                 centerLng={selfPos?.lng ?? geofenceCenter.lng ?? 0}
-                zoom={(selfPos?.lat || geofenceCenter.lat) ? 15 : 2}
+                zoom={(selfPos?.lat || geofenceCenter.lat) ? 19 : 2}
                 geofenceRadius={geofenceRadius}
                 height="360px"
                 onMapClick={isDefiningGeofence ? handleMapClick : undefined}

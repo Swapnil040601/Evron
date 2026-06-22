@@ -77,7 +77,7 @@ function MapController({ lat, lng }: { lat: number; lng: number }) {
     prevRef.current = { lat, lng };
     if (firstRef.current) {
       firstRef.current = false;
-      map.flyTo([lat, lng], 18, { animate: true, duration: 1.2 });
+      map.flyTo([lat, lng], 19, { animate: true, duration: 1.5 });
     } else if (moved) {
       map.panTo([lat, lng], { animate: true, duration: 0.5 });
     }
@@ -100,7 +100,7 @@ function getEmpStatusLabel(emp: MapEmployee) {
 export default function LiveMap({
   centerLat,
   centerLng,
-  zoom = 16,
+  zoom = 19,
   geofenceLat,
   geofenceLng,
   geofenceRadius = 300,
@@ -129,7 +129,7 @@ export default function LiveMap({
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          maxZoom={19}
+          maxZoom={20}
           keepBuffer={4}
         />
 

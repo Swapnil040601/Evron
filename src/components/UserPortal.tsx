@@ -1068,7 +1068,7 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
                   <LiveMap
                     centerLat={realDevice.latitude}
                     centerLng={realDevice.longitude}
-                    zoom={16}
+                    zoom={19}
                     geofenceRadius={300}
                     selfMode
                     employees={[{
