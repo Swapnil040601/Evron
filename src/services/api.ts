@@ -1484,6 +1484,7 @@ class ApiService {
     walk_distance_m?: number;
     other_app_opens?: number;
     app_opens_detail?: string;
+    app_timeline?: string;
     device_id?: string | null;
     battery_level?: number;
     charging_status?: string;
@@ -1552,6 +1553,7 @@ class ApiService {
         wifiBypassedOrAirplaneMode: false,
         otherAppOpens: loc.other_app_opens || 0,
         appOpensDetail: loc.app_opens_detail || {},
+        appTimeline: loc.app_timeline || [],
         deviceId: loc.device_id || null,
         batteryLevel: loc.battery_level ?? -1,
         chargingStatus: loc.charging_status || 'unknown',

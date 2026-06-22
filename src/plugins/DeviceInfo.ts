@@ -8,6 +8,7 @@ export interface DeviceInfoResult {
   hasUsagePermission: boolean;
   otherAppOpens: number;
   appOpensDetail: string;
+  appTimeline: string;
   batteryLevel: number;
   chargingStatus: 'charging' | 'discharging' | 'full' | 'not_charging' | 'unknown';
   plugType: 'ac' | 'usb' | 'wireless' | 'none';
@@ -30,6 +31,7 @@ const fallback: DeviceInfoResult = {
   hasUsagePermission: false,
   otherAppOpens: 0,
   appOpensDetail: '{}',
+  appTimeline: '[]',
   batteryLevel: -1,
   chargingStatus: 'unknown',
   plugType: 'none',

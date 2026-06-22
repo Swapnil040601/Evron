@@ -1094,7 +1094,7 @@ export default function ProductivityComplianceHub({ employees, currentUserCode, 
                       </span>
                     </div>
 
-                    {/* Per-app breakdown */}
+                    {/* Per-app breakdown with counts */}
                     {(() => {
                       const detail = (selectedEmpState as any).appOpensDetail;
                       const entries = detail && typeof detail === 'object'
@@ -1103,7 +1103,7 @@ export default function ProductivityComplianceHub({ employees, currentUserCode, 
                       if (entries.length === 0) return (
                         <p className="text-[9px] text-zinc-600 font-mono">No app usage data available.</p>
                       );
-                      const sorted = entries.sort((a, b) => b[1] - a[1]).slice(0, 6);
+                      const sorted = entries.sort((a, b) => b[1] - a[1]).slice(0, 8);
                       return (
                         <div className="flex flex-wrap gap-1 mt-1">
                           {sorted.map(([app, count]) => (
@@ -1115,6 +1115,32 @@ export default function ProductivityComplianceHub({ employees, currentUserCode, 
                               {app} ×{count}
                             </span>
                           ))}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Timeline — when each app was opened */}
+                    {(() => {
+                      const raw = (selectedEmpState as any).appTimeline;
+                      const timeline: { app: string; time: string; ts: number }[] =
+                        Array.isArray(raw) ? raw :
+                        typeof raw === 'string' ? (() => { try { return JSON.parse(raw); } catch { return []; } })() : [];
+                      if (timeline.length === 0) return null;
+                      const recent = timeline.sort((a, b) => b.ts - a.ts).slice(0, 12);
+                      return (
+                        <div className="mt-2 pt-2 border-t border-zinc-850 space-y-1">
+                          <span className="text-[8px] text-zinc-600 font-mono uppercase font-bold block">Timeline</span>
+                          <div className="max-h-[120px] overflow-y-auto space-y-0.5">
+                            {recent.map((item, i) => (
+                              <div key={i} className="flex items-center justify-between text-[9px] font-mono py-0.5">
+                                <span className={`truncate max-w-[60%] ${
+                                  FORBIDDEN_APP_NAMES.some(n => item.app.toLowerCase().includes(n))
+                                    ? 'text-rose-400 font-bold' : 'text-zinc-300'
+                                }`}>{item.app}</span>
+                                <span className="text-zinc-500 shrink-0">{item.time}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       );
                     })()}

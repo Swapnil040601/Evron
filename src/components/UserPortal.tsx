@@ -195,6 +195,7 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
           walk_distance_m: Math.round(walkDistRef.current),
           other_app_opens: deviceInfo.otherAppOpens,
           app_opens_detail: deviceInfo.appOpensDetail,
+          app_timeline: deviceInfo.appTimeline,
           device_id: deviceInfo.deviceId,
           battery_level: deviceInfo.batteryLevel,
           charging_status: deviceInfo.chargingStatus,

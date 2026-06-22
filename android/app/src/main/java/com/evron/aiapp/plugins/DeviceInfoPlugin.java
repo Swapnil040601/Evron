@@ -20,10 +20,16 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @CapacitorPlugin(name = "DeviceInfo")
@@ -113,13 +119,13 @@ public class DeviceInfoPlugin extends Plugin {
 
         int totalOtherAppOpens = 0;
         JSONObject appOpenDetail = new JSONObject();
+        JSONArray appTimeline = new JSONArray();
 
         if (hasUsagePermission) {
             try {
                 UsageStatsManager usm = (UsageStatsManager)
                         context.getSystemService(Context.USAGE_STATS_SERVICE);
 
-                // Count from midnight today so it resets daily
                 Calendar midnight = Calendar.getInstance();
                 midnight.set(Calendar.HOUR_OF_DAY, 0);
                 midnight.set(Calendar.MINUTE, 0);
@@ -131,6 +137,7 @@ public class DeviceInfoPlugin extends Plugin {
                 UsageEvents events = usm.queryEvents(workStart, now);
                 UsageEvents.Event event = new UsageEvents.Event();
                 Map<String, Integer> counts = new HashMap<>();
+                Map<String, List<Long>> timestamps = new HashMap<>();
                 String myPkg = context.getPackageName();
 
                 while (events.hasNextEvent()) {
@@ -142,11 +149,13 @@ public class DeviceInfoPlugin extends Plugin {
                     if (isIgnored(pkg)) continue;
 
                     counts.merge(pkg, 1, Integer::sum);
+                    timestamps.computeIfAbsent(pkg, k -> new ArrayList<>()).add(event.getTimeStamp());
                     totalOtherAppOpens++;
                 }
 
-                // Convert package names to human-readable app names
                 PackageManager pm = context.getPackageManager();
+                SimpleDateFormat sdf = new SimpleDateFormat("hh:mm a", Locale.getDefault());
+
                 for (Map.Entry<String, Integer> entry : counts.entrySet()) {
                     String label = entry.getKey();
                     try {
@@ -154,15 +163,27 @@ public class DeviceInfoPlugin extends Plugin {
                         label = pm.getApplicationLabel(ai).toString();
                     } catch (Exception ignored) {}
                     appOpenDetail.put(label, entry.getValue());
+
+                    List<Long> times = timestamps.get(entry.getKey());
+                    if (times != null) {
+                        for (Long ts : times) {
+                            JSONObject item = new JSONObject();
+                            item.put("app", label);
+                            item.put("time", sdf.format(new Date(ts)));
+                            item.put("ts", ts);
+                            appTimeline.put(item);
+                        }
+                    }
                 }
 
             } catch (Exception e) {
-                // no-op — permission granted but query failed
+                // no-op
             }
         }
 
         result.put("otherAppOpens", totalOtherAppOpens);
         result.put("appOpensDetail", appOpenDetail.toString());
+        result.put("appTimeline", appTimeline.toString());
 
         // ── Battery Info ──────────────────────────────────────────────────────
         try {
