@@ -77,7 +77,7 @@ function MapController({ lat, lng }: { lat: number; lng: number }) {
     prevRef.current = { lat, lng };
     if (firstRef.current) {
       firstRef.current = false;
-      map.flyTo([lat, lng], map.getZoom(), { animate: true, duration: 1.2 });
+      map.flyTo([lat, lng], 18, { animate: true, duration: 1.2 });
     } else if (moved) {
       map.panTo([lat, lng], { animate: true, duration: 0.5 });
     }
