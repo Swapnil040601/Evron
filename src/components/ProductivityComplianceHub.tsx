@@ -1434,54 +1434,72 @@ export default function ProductivityComplianceHub({ employees, currentUserCode, 
                     <tr className="bg-zinc-900 text-zinc-400 border-b border-zinc-800 font-bold uppercase select-none">
                       <th className="p-3 border-r border-zinc-850">Timestamp</th>
                       <th className="p-3 border-r border-zinc-850">Employee</th>
-                      <th className="p-3 border-r border-zinc-850 text-center">Security Status</th>
-                      <th className="p-3 border-r border-zinc-850 text-right">Latitude</th>
-                      <th className="p-3 border-r border-zinc-850 text-right">Longitude</th>
+                      <th className="p-3 border-r border-zinc-850 text-center">Status</th>
+                      <th className="p-3 border-r border-zinc-850">Location</th>
+                      <th className="p-3 border-r border-zinc-850 text-right">Distance</th>
                       <th className="p-3 border-r border-zinc-850 text-right">Precision</th>
-                      <th className="p-3 border-r border-zinc-850">Registered app</th>
-                      <th className="p-3 border-r border-zinc-850">Wifi Ssid</th>
-                      <th className="p-3">Compliance Activity detail / remarks</th>
+                      <th className="p-3 border-r border-zinc-850">Wifi</th>
+                      <th className="p-3">Detail</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-900 text-zinc-300">
-                    {gpsLogs.map((log) => {
+                    {gpsLogs.map((log, idx) => {
                       const hasAlert = log.isAppViolating || log.isSsidViolating || log.isDeveloperModeOn || log.wifiBypassedOrAirplaneMode;
+                      const prevLog = gpsLogs.find((p, pi) => pi > idx && p.employeeId === log.employeeId);
+                      let distStr = '—';
+                      if (prevLog) {
+                        const d = getDistanceInMeters(Number(log.lat), Number(log.lng), Number(prevLog.lat), Number(prevLog.lng));
+                        distStr = formatDist(d);
+                      }
                       return (
                         <tr key={log.id} className="hover:bg-zinc-900/40 transition">
                           <td className="p-3 border-r border-zinc-850 text-zinc-400 font-semibold">{log.timestamp}</td>
-                          <td className="p-3 border-r border-zinc-850 font-sans text-white font-bold flex items-center gap-2">
-                            <span className="w-5 h-5 rounded-full overflow-hidden bg-zinc-850 border border-zinc-800 flex shrink-0 items-center justify-center text-[8px] font-bold">
-                              {log.avatar ? (
-                                <img src={apiService.getFileUrl(log.avatar)} alt="" className="w-full h-full object-cover" />
-                              ) : (
-                                log.employeeId.slice(-3)
-                              )}
-                            </span>
-                            <div>
-                              <div className="font-semibold">{log.employeeName || 'Anonymous Worker'}</div>
-                              <div className="text-[8px] font-mono text-zinc-500">{log.employeeId}</div>
+                          <td className="p-3 border-r border-zinc-850 font-sans text-white font-bold">
+                            <div className="flex items-center gap-2">
+                              <span className="w-5 h-5 rounded-full overflow-hidden bg-zinc-850 border border-zinc-800 flex shrink-0 items-center justify-center text-[8px] font-bold">
+                                {log.avatar ? (
+                                  <img src={apiService.getFileUrl(log.avatar)} alt="" className="w-full h-full object-cover" />
+                                ) : (
+                                  log.employeeId.slice(-3)
+                                )}
+                              </span>
+                              <div>
+                                <div className="font-semibold">{log.employeeName || 'Anonymous Worker'}</div>
+                                <div className="text-[8px] font-mono text-zinc-500">{log.employeeId}</div>
+                              </div>
                             </div>
                           </td>
                           <td className="p-3 border-r border-zinc-850 text-center font-bold">
                             <span className={`px-2 py-0.5 rounded text-[8.5px] ${
-                              hasAlert 
-                                ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20 animate-pulse' 
+                              hasAlert
+                                ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20 animate-pulse'
                                 : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                             }`}>
                               {hasAlert ? '🚨 WARNING' : '🟢 SECURE'}
                             </span>
                           </td>
-                          <td className="p-3 border-r border-zinc-850 text-right font-bold text-white">{Number(log.lat).toFixed(5)}°</td>
-                          <td className="p-3 border-r border-zinc-850 text-right font-bold text-white">{Number(log.lng).toFixed(5)}°</td>
+                          <td className="p-3 border-r border-zinc-850">
+                            <a
+                              href={`https://www.google.com/maps?q=${log.lat},${log.lng}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 underline text-[9px]"
+                            >
+                              {Number(log.lat).toFixed(5)}, {Number(log.lng).toFixed(5)}
+                            </a>
+                          </td>
+                          <td className={`p-3 border-r border-zinc-850 text-right font-bold ${
+                            prevLog && getDistanceInMeters(Number(log.lat), Number(log.lng), Number(prevLog.lat), Number(prevLog.lng)) > 500
+                              ? 'text-amber-400' : 'text-zinc-400'
+                          }`}>
+                            {distStr}
+                          </td>
                           <td className="p-3 border-r border-zinc-850 text-right text-zinc-500">±{log.accuracy || 10}m</td>
-                          <td className={`p-3 border-r border-zinc-850 ${log.isAppViolating ? 'text-red-400 font-bold bg-rose-500/5' : 'text-zinc-400'}`}>
-                            {log.currentApp || 'None'}
-                          </td>
                           <td className={`p-3 border-r border-zinc-850 ${log.isSsidViolating ? 'text-amber-400' : 'text-zinc-400'}`}>
-                            {log.wifiSsid || 'None'}
+                            {log.wifiSsid || '—'}
                           </td>
-                          <td className="p-3 text-zinc-300 font-sans text-[10.5px] max-w-[300px] truncate" title={log.statusDetail}>
-                            {log.statusDetail || 'Telemetry log generated.'}
+                          <td className="p-3 text-zinc-300 font-sans text-[10.5px] max-w-[200px] truncate" title={log.statusDetail}>
+                            {log.statusDetail || '—'}
                           </td>
                         </tr>
                       );
