@@ -58,7 +58,7 @@ export default function Dashboard({
           </button>
           <button
             onClick={() => onNavigate('Users')}
-            className="flex items-center gap-2 bg-emerald-600/25 border border-emerald-500/40 text-emerald-300 text-xs font-semibold px-3 py-2 rounded-lg hover:bg-emerald-600/40 transition shadow-inner font-mono"
+            className="flex items-center gap-2 bg-emerald-600 border border-emerald-500 text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-emerald-500 transition shadow font-mono"
             id="dash-view-staff-btn"
           >
             <Users className="w-3.5 h-3.5" />
