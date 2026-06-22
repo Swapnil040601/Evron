@@ -103,6 +103,22 @@ export default function ProductivityComplianceHub({ employees, currentUserCode, 
         });
         const logs = await apiService.getGpsLogs();
         setGpsLogs(logs);
+
+        for (const [code, st] of Object.entries(liveStates)) {
+          const level = (st as any).batteryLevel;
+          const threshold = batteryThresholds[code] ?? 20;
+          if (level >= 0 && level <= threshold && !batteryAlertedRef.current.has(code)) {
+            batteryAlertedRef.current.add(code);
+            const emp = employees.find(e => e.id === code);
+            const name = emp?.name || code;
+            apiService.addSimulatorAlert(
+              `🪫 LOW BATTERY: ${name}'s device is at ${level}% (threshold: ${threshold}%). Tracking may stop soon.`,
+              'warning'
+            ).catch(() => {});
+          } else if (level > threshold) {
+            batteryAlertedRef.current.delete(code);
+          }
+        }
       }
     } catch (err) {
       console.warn('Failed to pull live location data:', err);
@@ -126,6 +142,25 @@ export default function ProductivityComplianceHub({ employees, currentUserCode, 
       return next;
     });
   };
+
+  const [batteryThresholds, setBatteryThresholds] = useState<Record<string, number>>(() => {
+    try {
+      const stored = localStorage.getItem('evron_battery_thresholds');
+      return stored ? JSON.parse(stored) : {};
+    } catch { return {}; }
+  });
+
+  const setBatteryThreshold = (empId: string, threshold: number) => {
+    setBatteryThresholds(prev => {
+      const next = { ...prev, [empId]: threshold };
+      localStorage.setItem('evron_battery_thresholds', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const getBatteryThreshold = (empId: string) => batteryThresholds[empId] ?? 20;
+
+  const batteryAlertedRef = useRef<Set<string>>(new Set());
 
   // Initial load + poll every 30s
   useEffect(() => {
@@ -967,9 +1002,29 @@ export default function ProductivityComplianceHub({ employees, currentUserCode, 
                   </span>
                 </div>
               )}
-              {(selectedEmpState as any).batteryLevel >= 0 && (selectedEmpState as any).batteryLevel <= 15 && (
+              {/* Alert threshold config */}
+              <div className="p-3 bg-zinc-950 border border-zinc-850 rounded-lg space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] text-zinc-500 font-mono uppercase">Alert when below</span>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="range"
+                      min="5"
+                      max="50"
+                      step="5"
+                      value={getBatteryThreshold(selectedEmpId)}
+                      onChange={(e) => setBatteryThreshold(selectedEmpId, Number(e.target.value))}
+                      className="w-20 h-1 bg-zinc-800 rounded appearance-none cursor-pointer accent-red-500"
+                    />
+                    <span className="text-xs font-bold font-mono text-red-400 w-8 text-right">{getBatteryThreshold(selectedEmpId)}%</span>
+                  </div>
+                </div>
+                <p className="text-[8px] text-zinc-600 font-mono">Admin gets notified when this employee's battery drops below this level</p>
+              </div>
+
+              {(selectedEmpState as any).batteryLevel >= 0 && (selectedEmpState as any).batteryLevel <= getBatteryThreshold(selectedEmpId) && (
                 <div className="bg-red-950/20 border border-red-500/20 rounded-lg px-3 py-2 text-[9px] text-red-300 font-mono animate-pulse">
-                  ⚠️ Critical battery — employee device may shut down soon. Tracking will stop.
+                  ⚠️ Battery at {(selectedEmpState as any).batteryLevel}% — below {getBatteryThreshold(selectedEmpId)}% threshold. Tracking may stop.
                 </div>
               )}
             </div>
