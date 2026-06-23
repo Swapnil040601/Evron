@@ -27,7 +27,6 @@ import {
   CheckCircle,
   AlertTriangle,
   FileText,
-  Smartphone,
   Info,
   Sun,
   Moon,
@@ -106,15 +105,9 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
     const handleThemeChange = () => {
       setThemeTrigger(p => p + 1);
     };
-    const handleNotchChangeCustom = () => {
-      const val = localStorage.getItem('android-notch-setting') || 'auto';
-      setNotchGuard(val as any);
-    };
     window.addEventListener('theme-changed', handleThemeChange);
-    window.addEventListener('notch-setting-changed', handleNotchChangeCustom);
     return () => {
       window.removeEventListener('theme-changed', handleThemeChange);
-      window.removeEventListener('notch-setting-changed', handleNotchChangeCustom);
     };
   }, []);
 
@@ -250,14 +243,6 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
     setIsBottomNavVisible(true);
   }, [activeSubTab]);
 
-  // Android notch position / display camera hole offset guard states
-  const [notchGuard, setNotchGuard] = useState<'auto' | 'center' | 'left' | 'right' | 'none'>(() => (localStorage.getItem('android-notch-setting') as any) || 'auto');
-
-  const notchPaddingClass = 
-    notchGuard === 'center' ? 'pt-10' :
-    notchGuard === 'left' ? 'pl-8' : 
-    notchGuard === 'right' ? 'pr-8' :
-    notchGuard === 'auto' ? 'pt-[env(safe-area-inset-top,20px)]' : '';
 
   // Multi-stage selfie triggers (Value Gold Security requirement)
   const [selfiePunchIn, setSelfiePunchIn] = useState<string | null>(localStorage.getItem('selfie_punch_in') || null);
@@ -568,8 +553,7 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
         </div>
       )}
 
-      {/* Top Header with dynamic android notch guard padding */}
-      <header className={`bg-zinc-950 border-b border-zinc-900 px-4 py-3.5 md:px-6 transition-all duration-300 ${notchPaddingClass}`} id="user-portal-header">
+      <header className="bg-zinc-950 border-b border-zinc-900 px-4 py-3.5 md:px-6 pt-[env(safe-area-inset-top,20px)]" id="user-portal-header">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center font-black text-white text-sm rotate-3 shadow-lg">
