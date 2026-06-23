@@ -1,14 +1,33 @@
 import { UserProfile, Employee, AttendanceRecord, FacePose } from '../types';
 
 const STORAGE_KEY = 'face_att_config';
-const DEFAULT_URL  = 'https://172.16.24.50:5184/api';
+const LEGACY_DEFAULT_URL = 'https://172.16.24.50:5184/api';
+
+function getDefaultUrl(): string {
+  const envUrl = ((import.meta as any).env?.VITE_API_URL || '').trim();
+  if (envUrl) return envUrl.replace(/\/$/, '');
+
+  if (typeof window !== 'undefined' && window.location.origin && window.location.origin !== 'capacitor://localhost') {
+    return `${window.location.origin}/api`.replace(/\/$/, '');
+  }
+
+  return 'http://35.244.3.148:5193/api';
+}
+
+const DEFAULT_URL = getDefaultUrl();
 
 interface Config { baseUrl: string; token: string | null; }
 
 function loadConfig(): Config {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) return JSON.parse(saved);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return {
+        baseUrl: !parsed.baseUrl || parsed.baseUrl === LEGACY_DEFAULT_URL ? DEFAULT_URL : parsed.baseUrl,
+        token: parsed.token ?? null,
+      };
+    }
   } catch {}
   return { baseUrl: DEFAULT_URL, token: null };
 }
@@ -67,7 +86,8 @@ class ApiService {
   }
 
   async me(): Promise<UserProfile> {
-    return this.req('GET', '/me');
+    const data: any = await this.req('GET', '/me');
+    return data.user ?? data;
   }
 
   // Employees

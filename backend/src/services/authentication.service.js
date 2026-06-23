@@ -12,6 +12,24 @@ function assertStrongPassword(password) {
   }
 }
 
+function isBcryptHash(value) {
+  return typeof value === "string" && /^\$2[aby]\$\d{2}\$/.test(value);
+}
+
+async function comparePassword(password, storedPassword) {
+  if (!storedPassword) return false;
+
+  if (isBcryptHash(storedPassword)) {
+    try {
+      return await bcrypt.compare(password, storedPassword);
+    } catch {
+      return false;
+    }
+  }
+
+  return password === storedPassword;
+}
+
 async function verifyRecaptcha(token, secretKey) {
   if (!secretKey || !token) return false;
   return new Promise((resolve) => {
@@ -59,20 +77,22 @@ export const AuthenticationService = {
     const user = await userRepo
       .createQueryBuilder("User")
       .addSelect("User.password")
-      .where("User.email = :email", { email })
+      .where("LOWER(User.email) = LOWER(:email)", { email: email.trim() })
       .getOne();
 
     if (!user) throw new Error("Invalid credentials");
     if (user.status !== "Active") throw new Error("Your account is inactive. Contact Admin.");
 
-    const match = await bcrypt.compare(password, user.password);
+    const match = await comparePassword(password, user.password);
     if (!match) throw new Error("Invalid credentials");
 
     const token = fastify.jwt.sign(
       { id: user.id, email: user.email, role: user.role },
       { expiresIn: "60d" }
     );
-    return { token };
+
+    const { password: _password, ...safeUser } = user;
+    return { token, user: safeUser };
   },
 
   register: async (db, data) => {

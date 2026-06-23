@@ -5,7 +5,6 @@
 
 import express from 'express';
 import path from 'path';
-import { createServer as createViteServer } from 'vite';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 
 const app = express();
@@ -40,6 +39,7 @@ app.use('/hls', createProxyMiddleware({
 
 async function serveApp() {
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
@@ -54,7 +54,7 @@ async function serveApp() {
         }
       }
     }));
-    app.get('*', (_req: any, res: any) => {
+    app.get('/{*path}', (_req: any, res: any) => {
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
       res.sendFile(path.join(distPath, 'index.html'));
     });
