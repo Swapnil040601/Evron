@@ -42,6 +42,7 @@ import { getDeviceInfo, openUsageAccessSettings } from '../plugins/DeviceInfo';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { App as CapApp } from '@capacitor/app';
 import LiveMap from './LiveMap';
+import { startBackgroundTracking, stopBackgroundTracking } from '../plugins/BackgroundLocation';
 
 interface UserPortalProps {
   currentUser: UserProfile;
@@ -137,6 +138,7 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
   // Real device GPS + internet status (replaces mock for enforcement)
   const realDevice = useRealDeviceStatus(profile.name);
   const [locationRefreshing, setLocationRefreshing] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   // Walk distance accumulator — persists across sessions within the same day
   const prevGpsRef = useRef<{ lat: number; lng: number } | null>(null);
@@ -260,6 +262,12 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
 
   useEffect(() => {
     loadAllData();
+    const token = apiService.getToken();
+    const config = apiService.getConfig();
+    if (token && config.baseUrl) {
+      startBackgroundTracking(config.baseUrl, token);
+    }
+    return () => { stopBackgroundTracking(); };
   }, []);
 
   // Compute days difference for leave
@@ -730,7 +738,8 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
                             <img
                               src={apiService.getFileUrl(todayPunch.punch_in_selfie)}
                               alt="Punch-in selfie"
-                              className="w-full h-20 object-cover rounded-lg border border-emerald-500/30 mt-1.5"
+                              className="w-full h-20 object-cover rounded-lg border border-emerald-500/30 mt-1.5 cursor-pointer hover:opacity-80 transition"
+                              onClick={() => setLightboxUrl(apiService.getFileUrl(todayPunch.punch_in_selfie))}
                               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                             />
                           )}
@@ -759,7 +768,8 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
                             <img
                               src={apiService.getFileUrl(todayPunch.punch_out_selfie)}
                               alt="Punch-out selfie"
-                              className="w-full h-20 object-cover rounded-lg border border-zinc-600/30 mt-1.5"
+                              className="w-full h-20 object-cover rounded-lg border border-zinc-600/30 mt-1.5 cursor-pointer hover:opacity-80 transition"
+                              onClick={() => setLightboxUrl(apiService.getFileUrl(todayPunch.punch_out_selfie))}
                               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                             />
                           )}
@@ -1049,6 +1059,7 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
                                 alt="in"
                                 title="Punch-in selfie"
                                 className="w-9 h-9 rounded object-cover border border-emerald-500/40 cursor-pointer hover:scale-125 transition-transform"
+                                onClick={() => setLightboxUrl(apiService.getFileUrl(row.punch_in_selfie!))}
                                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                               />
                             )}
@@ -1058,6 +1069,7 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
                                 alt="out"
                                 title="Punch-out selfie"
                                 className="w-9 h-9 rounded object-cover border border-zinc-600/40 cursor-pointer hover:scale-125 transition-transform"
+                                onClick={() => setLightboxUrl(apiService.getFileUrl(row.punch_out_selfie!))}
                                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                               />
                             )}
@@ -1427,6 +1439,14 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
 
         </div>
       </nav>
+
+      {/* Selfie Lightbox */}
+      {lightboxUrl && (
+        <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4" onClick={() => setLightboxUrl(null)}>
+          <img src={lightboxUrl} alt="Selfie" className="max-w-full max-h-full rounded-xl shadow-2xl object-contain" />
+          <button onClick={() => setLightboxUrl(null)} className="absolute top-6 right-6 text-white text-2xl font-bold bg-black/50 w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/80 transition">×</button>
+        </div>
+      )}
 
     </div>
   );

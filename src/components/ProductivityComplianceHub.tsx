@@ -45,6 +45,7 @@ const formatDist = (m: number): string =>
 export default function ProductivityComplianceHub({ employees, currentUserCode, onTriggerAlert }: ProductivityComplianceHubProps) {
   // Navigation sub-tabs
   const [activeSubTab, setActiveSubTab] = useState<'tracker' | 'excel_export' | 'gps_history'>('tracker');
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   
   // Search parameters
   const [searchQuery, setSearchQuery] = useState('');
@@ -1234,7 +1235,8 @@ export default function ProductivityComplianceHub({ employees, currentUserCode, 
                             <img
                               src={apiService.getFileUrl(selfieData.punch_in_selfie)}
                               alt="punch-in selfie"
-                              className="w-full h-32 object-cover rounded-lg border border-emerald-500/30"
+                              className="w-full h-32 object-cover rounded-lg border border-emerald-500/30 cursor-pointer hover:opacity-80 transition"
+                              onClick={() => setLightboxUrl(apiService.getFileUrl(selfieData.punch_in_selfie!))}
                               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                             />
                           ) : (
@@ -1251,7 +1253,8 @@ export default function ProductivityComplianceHub({ employees, currentUserCode, 
                             <img
                               src={apiService.getFileUrl(selfieData.punch_out_selfie)}
                               alt="punch-out selfie"
-                              className="w-full h-32 object-cover rounded-lg border border-zinc-600/30"
+                              className="w-full h-32 object-cover rounded-lg border border-zinc-600/30 cursor-pointer hover:opacity-80 transition"
+                              onClick={() => setLightboxUrl(apiService.getFileUrl(selfieData.punch_out_selfie!))}
                               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                             />
                           ) : (
@@ -1314,7 +1317,8 @@ export default function ProductivityComplianceHub({ employees, currentUserCode, 
                             src={apiService.getFileUrl(data.punch_in_selfie)}
                             alt="in"
                             title={`Punch-in ${data.punch_in_time || ''}`}
-                            className="w-full h-16 object-cover rounded border border-emerald-500/30"
+                            className="w-full h-16 object-cover rounded border border-emerald-500/30 cursor-pointer hover:opacity-80 transition"
+                            onClick={() => setLightboxUrl(apiService.getFileUrl(data.punch_in_selfie!))}
                             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                           />
                           <span className="absolute bottom-0.5 left-0.5 text-[7px] font-mono bg-black/70 text-emerald-400 px-0.5 rounded">IN</span>
@@ -1330,7 +1334,8 @@ export default function ProductivityComplianceHub({ employees, currentUserCode, 
                             src={apiService.getFileUrl(data.punch_out_selfie)}
                             alt="out"
                             title={`Punch-out ${data.punch_out_time || ''}`}
-                            className="w-full h-16 object-cover rounded border border-zinc-600/30"
+                            className="w-full h-16 object-cover rounded border border-zinc-600/30 cursor-pointer hover:opacity-80 transition"
+                            onClick={() => setLightboxUrl(apiService.getFileUrl(data.punch_out_selfie!))}
                             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                           />
                           <span className="absolute bottom-0.5 left-0.5 text-[7px] font-mono bg-black/70 text-zinc-400 px-0.5 rounded">OUT</span>
@@ -1601,6 +1606,14 @@ export default function ProductivityComplianceHub({ employees, currentUserCode, 
               </table>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Selfie Lightbox */}
+      {lightboxUrl && (
+        <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4" onClick={() => setLightboxUrl(null)}>
+          <img src={lightboxUrl} alt="Selfie" className="max-w-full max-h-full rounded-xl shadow-2xl object-contain" />
+          <button onClick={() => setLightboxUrl(null)} className="absolute top-6 right-6 text-white text-2xl font-bold bg-black/50 w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/80 transition">×</button>
         </div>
       )}
 
