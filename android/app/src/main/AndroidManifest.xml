@@ -27,6 +27,14 @@
         </activity>
 
         <service
+            android:name=".services.EvronFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <service
             android:name=".services.LocationTrackingService"
             android:foregroundServiceType="location"
             android:exported="false" />

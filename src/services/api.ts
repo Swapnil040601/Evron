@@ -1501,6 +1501,17 @@ class ApiService {
     } catch {}
   }
 
+  public async registerFcmToken(token: string): Promise<void> {
+    if (!this.config.useLive) return;
+    try {
+      await fetch(`${this.config.baseUrl}/me/fcm-token`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ fcm_token: token })
+      });
+    } catch {}
+  }
+
   public async getEmployeeLocations(): Promise<any[]> {
     if (this.config.useLive) {
       try {

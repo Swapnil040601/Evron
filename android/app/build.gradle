@@ -1,4 +1,5 @@
 apply plugin: 'com.android.application'
+apply plugin: 'com.google.gms.google-services'
 
 android {
     namespace = "com.evron.aiapp"
@@ -41,6 +42,8 @@ dependencies {
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
     implementation 'com.google.android.gms:play-services-location:21.3.0'
+    implementation platform('com.google.firebase:firebase-bom:33.12.0')
+    implementation 'com.google.firebase:firebase-messaging'
 }
 
 apply from: 'capacitor.build.gradle'

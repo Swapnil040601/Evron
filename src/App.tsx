@@ -187,6 +187,11 @@ export default function App() {
   useEffect(() => {
     if (currentUser && isAdminRole(currentUser.role)) {
       loadAdminData();
+      import('./plugins/PushNotification').then(({ getFcmToken }) => {
+        getFcmToken().then(fcm => {
+          if (fcm) apiService.registerFcmToken(fcm);
+        });
+      });
     }
   }, [currentUser]);
 

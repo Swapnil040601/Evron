@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "149201975660",
+    "project_id": "en-app-76ca0",
+    "storage_bucket": "en-app-76ca0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:149201975660:android:4e48bd0481e40b3e309b49",
+        "android_client_info": {
+          "package_name": "com.evron.aiapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCyCw1tfwZ7vudADEa1poT9lD_Teyy2QTQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

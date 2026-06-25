@@ -43,6 +43,7 @@ import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { App as CapApp } from '@capacitor/app';
 import LiveMap from './LiveMap';
 import { startBackgroundTracking, stopBackgroundTracking } from '../plugins/BackgroundLocation';
+import { getFcmToken } from '../plugins/PushNotification';
 
 interface UserPortalProps {
   currentUser: UserProfile;
@@ -267,6 +268,9 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
     if (token && config.baseUrl) {
       startBackgroundTracking(config.baseUrl, token);
     }
+    getFcmToken().then(fcm => {
+      if (fcm) apiService.registerFcmToken(fcm);
+    });
     return () => { stopBackgroundTracking(); };
   }, []);
 
