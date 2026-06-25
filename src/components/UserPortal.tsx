@@ -22,7 +22,6 @@ import {
   LogOut,
   Plus,
   Trash2,
-  CalendarDays,
   Camera as CameraIcon,
   CheckCircle,
   AlertTriangle,
@@ -51,7 +50,7 @@ interface UserPortalProps {
 }
 
 export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'home' | 'attendance' | 'leave' | 'holidays' | 'expenses' | 'profile'>('home');
+  const [activeSubTab, setActiveSubTab] = useState<'home' | 'attendance' | 'leave' | 'expenses' | 'profile'>('home');
 
   // Hardware back button — go to home sub-tab instead of minimising
   useEffect(() => {
@@ -1319,36 +1318,6 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
           </div>
         )}
 
-        {/* HOLIDAYS SECTION */}
-        {activeSubTab === 'holidays' && (
-          <div className="space-y-6 animate-fadeIn">
-            <div className="border-b border-zinc-900 pb-3">
-              <h2 className="text-base font-bold text-white tracking-tight">Public Holidays (2026)</h2>
-              <p className="text-[10px] text-zinc-500 font-mono">Official annual exclusions list</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {holidays.map(h => (
-                <div key={h.id} className="bg-zinc-950 border border-zinc-900 p-4 rounded-xl flex items-start gap-3">
-                  <div className="bg-zinc-900 p-2 rounded-lg border border-zinc-850 shrink-0 text-red-400">
-                    <Calendar className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-xs font-bold text-white font-mono uppercase">{h.name}</h4>
-                      <span className="text-[8px] font-bold font-mono uppercase px-1.5 py-0.5 rounded bg-zinc-900 text-zinc-400 border border-zinc-850">
-                        {h.type}
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-[#ef4444] font-mono mt-0.5 block">{h.date}</span>
-                    <p className="text-[10px] text-zinc-500 leading-relaxed mt-1">{h.description || 'Corporate exclusion schedule day off.'}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* EXPENSES SECTION */}
         {activeSubTab === 'expenses' && (
           <div className="animate-fadeIn">
@@ -1470,66 +1439,56 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
         }`}
         id="staff-bottom-dock"
       >
-        <div className="max-w-md mx-auto flex items-center justify-between gap-1 px-4">
-          
+        <div className="max-w-lg mx-auto flex items-center justify-around px-2">
+
           <button
             onClick={() => { setActiveSubTab('home'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-            className={`flex flex-col items-center justify-center py-1 flex-1 text-center transition ${
+            className={`flex flex-col items-center justify-center py-2 px-3 text-center transition rounded-lg ${
               activeSubTab === 'home' ? 'text-red-500 font-bold' : 'text-zinc-500 hover:text-zinc-300'
             }`}
           >
-            <Clock className="w-4.5 h-4.5 mb-0.5" />
-            <span className="text-[9px] font-semibold font-mono">My Portal</span>
+            <Clock className="w-5 h-5 mb-1" />
+            <span className="text-[10px] font-semibold font-mono">Home</span>
           </button>
 
           <button
             onClick={() => { setActiveSubTab('attendance'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-            className={`flex flex-col items-center justify-center py-1 flex-1 text-center transition ${
+            className={`flex flex-col items-center justify-center py-2 px-3 text-center transition rounded-lg ${
               activeSubTab === 'attendance' ? 'text-red-500 font-bold' : 'text-zinc-500 hover:text-zinc-300'
             }`}
           >
-            <ClipboardList className="w-4.5 h-4.5 mb-0.5" />
-            <span className="text-[9px] font-semibold font-mono">Attendance</span>
+            <ClipboardList className="w-5 h-5 mb-1" />
+            <span className="text-[10px] font-semibold font-mono">Attendance</span>
           </button>
 
           <button
             onClick={() => { setActiveSubTab('leave'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-            className={`flex flex-col items-center justify-center py-1 flex-1 text-center transition relative ${
+            className={`flex flex-col items-center justify-center py-2 px-3 text-center transition rounded-lg relative ${
               activeSubTab === 'leave' ? 'text-red-500 font-bold' : 'text-zinc-500 hover:text-zinc-300'
             }`}
           >
-            <Calendar className="w-4.5 h-4.5 mb-0.5" />
-            <span className="text-[9px] font-semibold font-mono">My Leaves</span>
-          </button>
-
-          <button
-            onClick={() => { setActiveSubTab('holidays'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-            className={`flex flex-col items-center justify-center py-1 flex-1 text-center transition ${
-              activeSubTab === 'holidays' ? 'text-red-500 font-bold' : 'text-zinc-500 hover:text-zinc-300'
-            }`}
-          >
-            <CalendarDays className="w-4.5 h-4.5 mb-0.5" />
-            <span className="text-[9px] font-semibold font-mono">Holidays</span>
+            <Calendar className="w-5 h-5 mb-1" />
+            <span className="text-[10px] font-semibold font-mono">Leaves</span>
           </button>
 
           <button
             onClick={() => { setActiveSubTab('expenses'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-            className={`flex flex-col items-center justify-center py-1 flex-1 text-center transition ${
+            className={`flex flex-col items-center justify-center py-2 px-3 text-center transition rounded-lg ${
               activeSubTab === 'expenses' ? 'text-red-500 font-bold' : 'text-zinc-500 hover:text-zinc-300'
             }`}
           >
-            <Receipt className="w-4.5 h-4.5 mb-0.5" />
-            <span className="text-[9px] font-semibold font-mono">Expenses</span>
+            <Receipt className="w-5 h-5 mb-1" />
+            <span className="text-[10px] font-semibold font-mono">Expenses</span>
           </button>
 
           <button
             onClick={() => { setActiveSubTab('profile'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-            className={`flex flex-col items-center justify-center py-1 flex-1 text-center transition ${
+            className={`flex flex-col items-center justify-center py-2 px-3 text-center transition rounded-lg ${
               activeSubTab === 'profile' ? 'text-red-500 font-bold' : 'text-zinc-500 hover:text-zinc-300'
             }`}
           >
-            <User className="w-4.5 h-4.5 mb-0.5" />
-            <span className="text-[9px] font-semibold font-mono">Profile</span>
+            <User className="w-5 h-5 mb-1" />
+            <span className="text-[10px] font-semibold font-mono">Profile</span>
           </button>
 
         </div>
