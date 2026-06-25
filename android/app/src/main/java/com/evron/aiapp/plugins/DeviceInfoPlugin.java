@@ -232,6 +232,34 @@ public class DeviceInfoPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void isBatteryOptimized(PluginCall call) {
+        try {
+            android.os.PowerManager pm = (android.os.PowerManager) getContext().getSystemService(Context.POWER_SERVICE);
+            boolean optimized = !pm.isIgnoringBatteryOptimizations(getContext().getPackageName());
+            JSObject result = new JSObject();
+            result.put("optimized", optimized);
+            call.resolve(result);
+        } catch (Exception e) {
+            JSObject result = new JSObject();
+            result.put("optimized", false);
+            call.resolve(result);
+        }
+    }
+
+    @PluginMethod
+    public void requestDisableBatteryOptimization(PluginCall call) {
+        try {
+            Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+            intent.setData(android.net.Uri.parse("package:" + getContext().getPackageName()));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("Cannot open battery settings: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
     public void openUsageAccessSettings(PluginCall call) {
         try {
             Intent intent = new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS);

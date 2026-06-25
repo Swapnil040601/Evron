@@ -38,7 +38,7 @@ import {
 import ExpenseTracker from './ExpenseTracker';
 import AuraBackground from './AuraBackground';
 import { useRealDeviceStatus } from '../hooks/useRealDeviceStatus';
-import { getDeviceInfo, openUsageAccessSettings } from '../plugins/DeviceInfo';
+import { getDeviceInfo, openUsageAccessSettings, isBatteryOptimized, requestDisableBatteryOptimization } from '../plugins/DeviceInfo';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { App as CapApp } from '@capacitor/app';
 import LiveMap from './LiveMap';
@@ -140,6 +140,7 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
   const realDevice = useRealDeviceStatus(profile.name);
   const [locationRefreshing, setLocationRefreshing] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [showBatteryPrompt, setShowBatteryPrompt] = useState(false);
 
   // Walk distance accumulator — persists across sessions within the same day
   const prevGpsRef = useRef<{ lat: number; lng: number } | null>(null);
@@ -271,6 +272,11 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
     getFcmToken().then(fcm => {
       if (fcm) apiService.registerFcmToken(fcm);
     });
+    if (!localStorage.getItem('evron_battery_opt_dismissed')) {
+      isBatteryOptimized().then(optimized => {
+        if (optimized) setShowBatteryPrompt(true);
+      });
+    }
     return () => { stopBackgroundTracking(); };
   }, []);
 
@@ -550,6 +556,38 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
           >
             {locationRefreshing ? 'Retrying...' : 'Retry GPS'}
           </button>
+        </div>
+      )}
+
+      {/* Battery Optimization Prompt */}
+      {showBatteryPrompt && (
+        <div className="fixed inset-0 z-[998] bg-black/80 flex items-center justify-center p-6" onClick={() => { setShowBatteryPrompt(false); localStorage.setItem('evron_battery_opt_dismissed', '1'); }}>
+          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-6 max-w-sm space-y-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="text-center space-y-2">
+              <span className="text-3xl">🔋</span>
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Battery Optimization</h3>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                Your phone's battery saver may stop location tracking when the app is in the background.
+                Please disable battery optimization for Evron to ensure uninterrupted tracking.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                requestDisableBatteryOptimization();
+                setShowBatteryPrompt(false);
+                localStorage.setItem('evron_battery_opt_dismissed', '1');
+              }}
+              className="w-full py-3 bg-red-600 hover:bg-red-500 text-white font-bold font-mono rounded-xl uppercase tracking-wider text-xs transition"
+            >
+              Disable Battery Optimization
+            </button>
+            <button
+              onClick={() => { setShowBatteryPrompt(false); localStorage.setItem('evron_battery_opt_dismissed', '1'); }}
+              className="w-full py-2 text-zinc-500 text-[10px] font-mono uppercase hover:text-zinc-300 transition"
+            >
+              Skip for now
+            </button>
+          </div>
         </div>
       )}
 

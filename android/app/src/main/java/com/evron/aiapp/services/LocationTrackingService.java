@@ -59,6 +59,13 @@ public class LocationTrackingService extends Service {
             authToken = intent.getStringExtra("authToken");
         }
 
+        if (apiUrl != null && authToken != null) {
+            getSharedPreferences("evron_tracking", MODE_PRIVATE).edit()
+                .putString("apiUrl", apiUrl)
+                .putString("authToken", authToken)
+                .apply();
+        }
+
         startForeground(NOTIFICATION_ID, buildNotification("Tracking location..."));
 
         LocationRequest request = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, INTERVAL_MS)

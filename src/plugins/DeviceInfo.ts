@@ -19,6 +19,8 @@ export interface DeviceInfoResult {
 interface DeviceInfoPlugin {
   getInfo(): Promise<DeviceInfoResult>;
   openUsageAccessSettings(): Promise<void>;
+  isBatteryOptimized(): Promise<{ optimized: boolean }>;
+  requestDisableBatteryOptimization(): Promise<void>;
 }
 
 const DeviceInfoNative = registerPlugin<DeviceInfoPlugin>('DeviceInfo');
@@ -52,5 +54,20 @@ export async function openUsageAccessSettings(): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
   try {
     await DeviceInfoNative.openUsageAccessSettings();
+  } catch {}
+}
+
+export async function isBatteryOptimized(): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) return false;
+  try {
+    const result = await DeviceInfoNative.isBatteryOptimized();
+    return result.optimized;
+  } catch { return false; }
+}
+
+export async function requestDisableBatteryOptimization(): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return;
+  try {
+    await DeviceInfoNative.requestDisableBatteryOptimization();
   } catch {}
 }
