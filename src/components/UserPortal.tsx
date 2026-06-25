@@ -734,9 +734,10 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
                             {new Date(todayPunch.mobile_punch_in).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                           </span>
                           {todayPunch.punch_in_lat && (
-                            <span className="text-[9px] text-zinc-500 font-mono block mt-0.5">
-                              📍 {Number(todayPunch.punch_in_lat).toFixed(4)}, {Number(todayPunch.punch_in_lng).toFixed(4)}
-                            </span>
+                            <a href={`https://www.google.com/maps?q=${todayPunch.punch_in_lat},${todayPunch.punch_in_lng}`} target="_blank" rel="noopener noreferrer"
+                              className="text-[9px] text-blue-400 hover:text-blue-300 font-mono block mt-0.5 underline">
+                              📍 View on Maps
+                            </a>
                           )}
                           {todayPunch.punch_in_selfie && (
                             <img
@@ -764,9 +765,10 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
                             {new Date(todayPunch.mobile_punch_out).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                           </span>
                           {todayPunch.punch_out_lat && (
-                            <span className="text-[9px] text-zinc-500 font-mono block mt-0.5">
-                              📍 {Number(todayPunch.punch_out_lat).toFixed(4)}, {Number(todayPunch.punch_out_lng).toFixed(4)}
-                            </span>
+                            <a href={`https://www.google.com/maps?q=${todayPunch.punch_out_lat},${todayPunch.punch_out_lng}`} target="_blank" rel="noopener noreferrer"
+                              className="text-[9px] text-blue-400 hover:text-blue-300 font-mono block mt-0.5 underline">
+                              📍 View on Maps
+                            </a>
                           )}
                           {todayPunch.punch_out_selfie && (
                             <img
@@ -966,9 +968,10 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
                   </h3>
                   <div className="flex items-center gap-2">
                     {realDevice.locationReady && (
-                      <span className="text-[9px] font-mono text-zinc-500 uppercase">
-                        {realDevice.latitude.toFixed(5)}, {realDevice.longitude.toFixed(5)}
-                      </span>
+                      <a href={`https://www.google.com/maps?q=${realDevice.latitude},${realDevice.longitude}`} target="_blank" rel="noopener noreferrer"
+                        className="text-[9px] font-mono text-blue-400 hover:text-blue-300 underline">
+                        📍 View on Maps
+                      </a>
                     )}
                     <button
                       onClick={handleRefreshLocation}

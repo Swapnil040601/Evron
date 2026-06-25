@@ -192,9 +192,10 @@ export default function LiveMap({
                     <strong style={{ fontSize: 14 }}>{emp.name}</strong><br />
                     <span style={{ color: '#64748b', fontSize: 10 }}>{emp.id}</span><br />
                     <b style={{ color: label.color, fontSize: 12 }}>{label.text}</b><br />
-                    <span style={{ color: '#94a3b8', fontSize: 10 }}>
-                      {emp.lat.toFixed(5)}, {emp.lng.toFixed(5)}
-                    </span>
+                    <a href={`https://www.google.com/maps?q=${emp.lat},${emp.lng}`} target="_blank" rel="noopener noreferrer"
+                      style={{ color: '#60a5fa', fontSize: 10 }}>
+                      📍 Open in Maps
+                    </a>
                   </div>
                 </Popup>
               </Marker>

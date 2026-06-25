@@ -446,26 +446,18 @@ checkInTime: newEmpStatus === 'Present' ? '09:00 AM' : undefined
                         )}
                       </div>
                       {locModal.data.latitude && locModal.data.longitude ? (
-                        <>
-                          <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
-                            <div>
-                              <span className="text-zinc-600 block text-[8px] uppercase">Latitude</span>
-                              <span className="text-white font-bold">{parseFloat(locModal.data.latitude).toFixed(6)}</span>
-                            </div>
-                            <div>
-                              <span className="text-zinc-600 block text-[8px] uppercase">Longitude</span>
-                              <span className="text-white font-bold">{parseFloat(locModal.data.longitude).toFixed(6)}</span>
-                            </div>
+                        <a
+                          href={`https://www.google.com/maps?q=${locModal.data.latitude},${locModal.data.longitude}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 p-2.5 bg-blue-950/20 border border-blue-500/30 rounded-lg text-blue-400 hover:text-blue-300 transition"
+                        >
+                          <MapPin className="w-4 h-4 shrink-0" />
+                          <div>
+                            <span className="text-[10px] font-mono font-bold block">Open in Google Maps</span>
+                            <span className="text-[8px] font-mono text-zinc-500">{parseFloat(locModal.data.latitude).toFixed(6)}, {parseFloat(locModal.data.longitude).toFixed(6)}</span>
                           </div>
-                          <a
-                            href={`https://www.google.com/maps?q=${locModal.data.latitude},${locModal.data.longitude}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-[9px] font-mono text-emerald-400 hover:text-emerald-300 underline"
-                          >
-                            <MapPin className="w-3 h-3" /> Verify on Google Maps →
-                          </a>
-                        </>
+                        </a>
                       ) : (
                         <div className="py-2 text-center">
                           <p className="text-[10px] text-zinc-500 font-mono">GPS coordinates not available.</p>

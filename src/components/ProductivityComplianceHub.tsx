@@ -927,15 +927,15 @@ export default function ProductivityComplianceHub({ employees, currentUserCode, 
                                 {isBreached ? '🚨 Outside zone' : '🟢 Inside zone'}
                               </span>
                             </div>
-                            <div className="grid grid-cols-2 gap-2 text-[9px] font-mono pt-1 border-t border-zinc-900">
-                              <div>
-                                <span className="text-zinc-600 block text-[8px] uppercase">Latitude</span>
-                                <span className="text-zinc-300">{selectedEmpState.activeLat?.toFixed(5) || '—'}</span>
-                              </div>
-                              <div>
-                                <span className="text-zinc-600 block text-[8px] uppercase">Longitude</span>
-                                <span className="text-zinc-300">{selectedEmpState.activeLng?.toFixed(5) || '—'}</span>
-                              </div>
+                            <div className="pt-1 border-t border-zinc-900">
+                              {selectedEmpState.activeLat ? (
+                                <a href={`https://www.google.com/maps?q=${selectedEmpState.activeLat},${selectedEmpState.activeLng}`} target="_blank" rel="noopener noreferrer"
+                                  className="text-[9px] font-mono text-blue-400 hover:text-blue-300 underline flex items-center gap-1">
+                                  📍 View on Google Maps ({selectedEmpState.activeLat?.toFixed(5)}, {selectedEmpState.activeLng?.toFixed(5)})
+                                </a>
+                              ) : (
+                                <span className="text-[9px] font-mono text-zinc-600">No location data</span>
+                              )}
                             </div>
                             <div className="text-[9px] font-mono text-zinc-500 pt-1 border-t border-zinc-900">
                               {selectedEmpState.statusDetail || 'No live data yet.'}
