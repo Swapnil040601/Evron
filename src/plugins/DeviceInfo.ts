@@ -9,6 +9,7 @@ export interface DeviceInfoResult {
   otherAppOpens: number;
   appOpensDetail: string;
   appTimeline: string;
+  isMockLocation: boolean;
   batteryLevel: number;
   chargingStatus: 'charging' | 'discharging' | 'full' | 'not_charging' | 'unknown';
   plugType: 'ac' | 'usb' | 'wireless' | 'none';
@@ -34,6 +35,7 @@ const fallback: DeviceInfoResult = {
   otherAppOpens: 0,
   appOpensDetail: '{}',
   appTimeline: '[]',
+  isMockLocation: false,
   batteryLevel: -1,
   chargingStatus: 'unknown',
   plugType: 'none',

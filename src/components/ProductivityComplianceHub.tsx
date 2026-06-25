@@ -1080,6 +1080,17 @@ export default function ProductivityComplianceHub({ employees, currentUserCode, 
                     )}
                   </div>
 
+                  {/* Mock Location Detection */}
+                  {(selectedEmpState as any).isMockLocation && (
+                    <div className="p-3 bg-red-950/30 border border-red-500/40 rounded-lg space-y-1 animate-pulse">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] text-red-400 font-mono uppercase font-bold">Fake GPS Detected</span>
+                        <span className="bg-red-500 text-white text-[8px] font-mono px-2 py-0.5 rounded font-bold uppercase">SPOOFED</span>
+                      </div>
+                      <p className="text-[9px] text-red-300 font-mono">Mock location app installed or enabled. GPS data from this employee cannot be trusted.</p>
+                    </div>
+                  )}
+
                   {/* Other app opens count */}
                   <div className="p-3 bg-zinc-950 border border-zinc-850 rounded-lg space-y-2">
                     <div className="flex items-center justify-between">

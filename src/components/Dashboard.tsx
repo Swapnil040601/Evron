@@ -250,6 +250,77 @@ export default function Dashboard({
         </div>
       </div>
 
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Donut Chart */}
+        <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-5">
+          <h3 className="text-xs font-bold font-mono text-[#ef4444] uppercase tracking-widest mb-4">Attendance Distribution</h3>
+          <div className="flex items-center justify-center">
+            <svg width="160" height="160" viewBox="0 0 160 160">
+              {(() => {
+                const segments = [
+                  { pct: presentPct, color: '#10b981' },
+                  { pct: latePct, color: '#f59e0b' },
+                  { pct: leavePct, color: '#3b82f6' },
+                  { pct: absentPct, color: '#f43f5e' },
+                ].filter(s => s.pct > 0);
+                const r = 60, cx = 80, cy = 80, circumference = 2 * Math.PI * r;
+                let offset = 0;
+                return segments.map((seg, i) => {
+                  const dash = (seg.pct / 100) * circumference;
+                  const gap = circumference - dash;
+                  const el = (
+                    <circle key={i} cx={cx} cy={cy} r={r} fill="none"
+                      stroke={seg.color} strokeWidth="20"
+                      strokeDasharray={`${dash} ${gap}`}
+                      strokeDashoffset={-offset}
+                      transform={`rotate(-90 ${cx} ${cy})`}
+                      className="transition-all duration-700"
+                    />
+                  );
+                  offset += dash;
+                  return el;
+                });
+              })()}
+              <text x="80" y="74" textAnchor="middle" fill="white" fontSize="28" fontWeight="bold" fontFamily="monospace">{total}</text>
+              <text x="80" y="94" textAnchor="middle" fill="#a1a1aa" fontSize="10" fontFamily="monospace">EMPLOYEES</text>
+            </svg>
+          </div>
+        </div>
+
+        {/* Department Breakdown */}
+        <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-5">
+          <h3 className="text-xs font-bold font-mono text-[#ef4444] uppercase tracking-widest mb-4">Department Strength</h3>
+          <div className="space-y-3">
+            {(() => {
+              const depts: Record<string, { total: number; present: number }> = {};
+              employees.forEach(e => {
+                if (!depts[e.department]) depts[e.department] = { total: 0, present: 0 };
+                depts[e.department].total++;
+                if (e.status === 'Present' || e.status === 'Late') depts[e.department].present++;
+              });
+              return Object.entries(depts).sort((a, b) => b[1].total - a[1].total).map(([dept, data]) => {
+                const pct = Math.round((data.present / data.total) * 100);
+                return (
+                  <div key={dept} className="space-y-1">
+                    <div className="flex items-center justify-between text-[10px] font-mono">
+                      <span className="text-zinc-300 font-bold">{dept}</span>
+                      <span className="text-zinc-500">{data.present}/{data.total} <span className={pct >= 80 ? 'text-emerald-400' : pct >= 50 ? 'text-amber-400' : 'text-red-400'}>({pct}%)</span></span>
+                    </div>
+                    <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-700 ${pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-red-500'}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        </div>
+      </div>
+
       {/* Main Content Layout with recent activity split and quick launch */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6" id="dashboard-content-grid">
         {/* Activity Feed Column (lg: 7) */}

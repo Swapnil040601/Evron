@@ -198,7 +198,14 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
           charging_status: deviceInfo.chargingStatus,
           battery_health: deviceInfo.batteryHealth,
           battery_temp: deviceInfo.batteryTemp,
+          is_mock_location: deviceInfo.isMockLocation,
         });
+        if (deviceInfo.isMockLocation) {
+          apiService.addSimulatorAlert(
+            `🚨 FAKE GPS DETECTED: ${profile.name} has a mock location app installed or mock locations enabled. Location data may be spoofed.`,
+            'critical'
+          ).catch(() => {});
+        }
       } catch {}
     };
 
@@ -340,6 +347,37 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
   };
 
 
+  const addWatermark = (base64: string, lines: string[]): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(img, 0, 0);
+
+        const fontSize = Math.max(14, Math.floor(img.width / 28));
+        ctx.font = `bold ${fontSize}px monospace`;
+        const padding = fontSize * 0.6;
+        const lineHeight = fontSize * 1.3;
+        const blockHeight = lines.length * lineHeight + padding * 2;
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+        ctx.fillRect(0, img.height - blockHeight, img.width, blockHeight);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.textBaseline = 'top';
+        lines.forEach((line, i) => {
+          ctx.fillText(line, padding, img.height - blockHeight + padding + i * lineHeight);
+        });
+
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.src = base64;
+    });
+  };
+
   const handleTriggerSelfie = async (type: 'punch_in' | 'destination' | 'punch_out') => {
     if (!realDevice.gpsEnabled) {
       triggerBanner('err', 'Location required: Turn on GPS / Location services before capturing a selfie.');
@@ -361,27 +399,39 @@ export default function UserPortal({ currentUser, onLogout }: UserPortalProps) {
         source: CameraSource.Camera,
       });
 
-      const imgData = `data:image/jpeg;base64,${photo.base64String}`;
-      const meta = `Photo @ ${realDevice.latitude.toFixed(4)}, ${realDevice.longitude.toFixed(4)} · ${new Date().toLocaleTimeString()}`;
+      const rawImg = `data:image/jpeg;base64,${photo.base64String}`;
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const typeLabel = type === 'punch_in' ? 'PUNCH IN' : type === 'punch_out' ? 'PUNCH OUT' : 'DESTINATION';
+
+      const imgData = await addWatermark(rawImg, [
+        `${profile.name} | ${profile.code}`,
+        `${dateStr} ${timeStr}`,
+        `GPS: ${realDevice.latitude.toFixed(5)}, ${realDevice.longitude.toFixed(5)}`,
+        `Type: ${typeLabel} | Evron Verified`,
+      ]);
+
+      const meta = `${typeLabel} @ ${realDevice.latitude.toFixed(4)}, ${realDevice.longitude.toFixed(4)} · ${timeStr}`;
 
       if (type === 'punch_in') {
         setSelfiePunchIn(meta);
         setSelfiePunchInImg(imgData);
         localStorage.setItem('selfie_punch_in', meta);
         localStorage.setItem('selfie_punch_in_img', imgData);
-        triggerBanner('success', '✅ Punch-in photo captured with GPS coordinates!');
+        triggerBanner('success', '✅ Punch-in photo captured with watermark!');
       } else if (type === 'destination') {
         setSelfieDestination(meta);
         setSelfieDestinationImg(imgData);
         localStorage.setItem('selfie_destination', meta);
         localStorage.setItem('selfie_destination_img', imgData);
-        triggerBanner('success', '✅ Destination selfie captured!');
+        triggerBanner('success', '✅ Destination selfie captured with watermark!');
       } else if (type === 'punch_out') {
         setSelfiePunchOut(meta);
         setSelfiePunchOutImg(imgData);
         localStorage.setItem('selfie_punch_out', meta);
         localStorage.setItem('selfie_punch_out_img', imgData);
-        triggerBanner('success', '✅ Punch-out photo captured!');
+        triggerBanner('success', '✅ Punch-out photo captured with watermark!');
       }
     } catch (err: any) {
       if (err?.message !== 'User cancelled photos app') {

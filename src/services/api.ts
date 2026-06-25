@@ -1490,6 +1490,7 @@ class ApiService {
     charging_status?: string;
     battery_health?: string;
     battery_temp?: number;
+    is_mock_location?: boolean;
   }): Promise<void> {
     if (!this.config.useLive) return;
     try {
@@ -1570,6 +1571,7 @@ class ApiService {
         chargingStatus: loc.charging_status || 'unknown',
         batteryHealth: loc.battery_health || 'unknown',
         batteryTemp: loc.battery_temp ?? 0,
+        isMockLocation: loc.is_mock_location || false,
       };
     }
     return states;

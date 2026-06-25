@@ -185,6 +185,37 @@ public class DeviceInfoPlugin extends Plugin {
         result.put("appOpensDetail", appOpenDetail.toString());
         result.put("appTimeline", appTimeline.toString());
 
+        // ── Mock Location Detection ────────────────────────────────────────────
+        boolean isMockLocation = false;
+        try {
+            // Check if mock locations are enabled in developer settings
+            if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.S) {
+                int mockSetting = Settings.Secure.getInt(
+                    context.getContentResolver(), "mock_location", 0);
+                if (mockSetting == 1) isMockLocation = true;
+            }
+
+            // Check for known fake GPS apps
+            String[] fakeGpsPackages = {
+                "com.lexa.fakegps", "com.incorporateapps.fakegps",
+                "com.fakegps.mock", "com.blogspot.newapphorizons.fakegps",
+                "com.gsmartstudio.fakegps", "com.lkr.fakelocation",
+                "com.marlon.floating.fake.location", "com.location.faker",
+                "com.theappninjas.fakegpsjoystick", "com.evezzon.fakegps",
+                "com.lexa.fakegps.pro", "ru.gavrikov.mocklocations",
+                "com.rosteam.gpsemulator"
+            };
+            PackageManager pmCheck = context.getPackageManager();
+            for (String pkg : fakeGpsPackages) {
+                try {
+                    pmCheck.getPackageInfo(pkg, 0);
+                    isMockLocation = true;
+                    break;
+                } catch (PackageManager.NameNotFoundException ignored) {}
+            }
+        } catch (Exception ignored) {}
+        result.put("isMockLocation", isMockLocation);
+
         // ── Battery Info ──────────────────────────────────────────────────────
         try {
             IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
